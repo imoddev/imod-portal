@@ -7,16 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+
 import {
   Clock,
   LogIn,
@@ -97,8 +88,7 @@ export default function TimesheetPage() {
   const [locationData, setLocationData] = useState<LocationData | null>(null);
   const [locationError, setLocationError] = useState<string | null>(null);
   const [isGettingLocation, setIsGettingLocation] = useState(false);
-  const [showLocationWarning, setShowLocationWarning] = useState(false);
-  const [pendingAction, setPendingAction] = useState<"checkin" | "checkout" | null>(null);
+
 
   // Get current employee from session
   const { data: session } = useSession();
@@ -225,21 +215,22 @@ export default function TimesheetPage() {
     }
   };
 
-  const handleCheckIn = async (force = false) => {
+  const handleCheckIn = async () => {
     if (!currentEmployee) return;
 
-    // Check if location is required and valid
-    if (workType === "office" && !force) {
+    // Office work type: MUST be within 1km - no exceptions
+    if (workType === "office") {
       if (!locationData) {
         setLocationError("กรุณาเปิด Location เพื่อยืนยันตำแหน่ง");
         return;
       }
       if (!locationData.isWithinOffice) {
-        setPendingAction("checkin");
-        setShowLocationWarning(true);
+        setLocationError(`ไม่สามารถเข้างานแบบ Office ได้ — คุณอยู่ห่าง ${formatDistance(locationData.distance || 0)} (ต้องอยู่ใน 1 km)`);
         return;
       }
     }
+    
+    // WFH and Field: allowed anywhere, just log location
 
     setIsProcessing(true);
     try {
@@ -307,13 +298,7 @@ export default function TimesheetPage() {
     }
   };
 
-  const handleConfirmCheckIn = () => {
-    setShowLocationWarning(false);
-    if (pendingAction === "checkin") {
-      handleCheckIn(true);
-    }
-    setPendingAction(null);
-  };
+  // Remove force check-in - Office must be within radius
 
   const formatTime = (dateStr: string | null) => {
     if (!dateStr) return "-";
@@ -338,40 +323,7 @@ export default function TimesheetPage() {
 
   return (
     <div className="space-y-6">
-      {/* Location Warning Dialog */}
-      <AlertDialog open={showLocationWarning} onOpenChange={setShowLocationWarning}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle className="flex items-center gap-2 text-yellow-600">
-              <AlertTriangle className="h-5 w-5" />
-              ตำแหน่งไม่ตรงกับ Office
-            </AlertDialogTitle>
-            <AlertDialogDescription className="space-y-2">
-              <p>
-                คุณเลือก <strong>Office</strong> แต่ตำแหน่งปัจจุบันอยู่ห่างจาก iMoD Office{" "}
-                <strong className="text-red-600">
-                  {locationData?.distance ? formatDistance(locationData.distance) : "ไม่ทราบ"}
-                </strong>
-              </p>
-              <p className="text-sm text-muted-foreground">
-                ระยะที่อนุญาต: ไม่เกิน {IMOD_OFFICE.radiusKm} km
-              </p>
-              <p className="text-sm">
-                หากต้องการบันทึก Work from Home กรุณาเปลี่ยนรูปแบบการทำงาน
-              </p>
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>ยกเลิก</AlertDialogCancel>
-            <AlertDialogAction 
-              onClick={handleConfirmCheckIn}
-              className="bg-yellow-600 hover:bg-yellow-700"
-            >
-              ยืนยันลงเวลา (จะถูกบันทึกเป็น Suspicious)
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+
 
       {/* Header */}
       <div>
@@ -501,9 +453,11 @@ export default function TimesheetPage() {
                   })}
                 </div>
                 {workType === "office" && locationData && !locationData.isWithinOffice && (
-                  <p className="text-xs text-yellow-600">
-                    ⚠️ ตำแหน่งปัจจุบันอยู่นอกรัศมี Office ({formatDistance(locationData.distance || 0)})
-                  </p>
+                  <div className="p-2 bg-red-50 border border-red-200 rounded-lg text-xs text-red-700">
+                    <p className="font-medium">❌ ไม่สามารถเข้างานแบบ Office ได้</p>
+                    <p>คุณอยู่ห่าง {formatDistance(locationData.distance || 0)} — ต้องอยู่ใน 1 km</p>
+                    <p className="mt-1">💡 เลือก <strong>WFH</strong> หรือ <strong>Field Work</strong> แทน</p>
+                  </div>
                 )}
               </div>
             )}
@@ -537,7 +491,13 @@ export default function TimesheetPage() {
             <div className="grid grid-cols-2 gap-3">
               <Button
                 className="bg-green-600 hover:bg-green-700"
-                disabled={!canCheckIn || isProcessing || isGettingLocation}
+                disabled={
+                  !canCheckIn || 
+                  isProcessing || 
+                  isGettingLocation ||
+                  (workType === "office" && locationData && !locationData.isWithinOffice) ||
+                  (workType === "office" && !locationData)
+                }
                 onClick={() => handleCheckIn()}
               >
                 {isProcessing ? (
