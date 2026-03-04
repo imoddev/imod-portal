@@ -464,23 +464,65 @@ export default function LongToShortPage() {
 
                   {/* Progress */}
                   {jobStatus && (
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-2">
-                        {jobStatus.status === "done" ? (
-                          <CheckCircle2 className="h-5 w-5 text-green-600" />
-                        ) : jobStatus.status === "error" ? (
-                          <AlertCircle className="h-5 w-5 text-red-600" />
-                        ) : (
-                          <Loader2 className="h-5 w-5 animate-spin text-primary" />
-                        )}
-                        <span className="text-sm font-medium">
-                          {getStatusText(jobStatus.status)}
-                        </span>
+                    <div className="space-y-3 p-4 rounded-lg bg-muted/30 border">
+                      {/* Status Header */}
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          {jobStatus.status === "done" ? (
+                            <CheckCircle2 className="h-5 w-5 text-green-600" />
+                          ) : jobStatus.status === "error" ? (
+                            <AlertCircle className="h-5 w-5 text-red-600" />
+                          ) : (
+                            <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                          )}
+                          <span className="font-medium">
+                            {getStatusText(jobStatus.status)}
+                          </span>
+                        </div>
+                        <Badge variant="outline" className="text-lg font-bold">
+                          {jobStatus.progress}%
+                        </Badge>
                       </div>
-                      <Progress value={jobStatus.progress} />
+                      
+                      {/* Progress Bar */}
+                      <div className="space-y-1">
+                        <Progress value={jobStatus.progress} className="h-3" />
+                        <div className="flex justify-between text-xs text-muted-foreground">
+                          <span>เริ่มต้น</span>
+                          <span>เสร็จสิ้น</span>
+                        </div>
+                      </div>
+                      
+                      {/* Steps Indicator */}
+                      <div className="grid grid-cols-4 gap-2 pt-2">
+                        {[
+                          { key: "extracting_audio", label: "แยกเสียง", pct: 10 },
+                          { key: "transcribing", label: "ถอดเสียง", pct: 30 },
+                          { key: "analyzing", label: "AI วิเคราะห์", pct: 60 },
+                          { key: "cutting", label: "ตัดคลิป", pct: 80 },
+                        ].map((step) => {
+                          const isActive = jobStatus.status === step.key;
+                          const isDone = jobStatus.progress > step.pct;
+                          return (
+                            <div
+                              key={step.key}
+                              className={`text-center p-2 rounded-lg text-xs transition-all ${
+                                isActive
+                                  ? "bg-primary/20 text-primary font-medium ring-2 ring-primary"
+                                  : isDone
+                                  ? "bg-green-100 text-green-700 dark:bg-green-900/30"
+                                  : "bg-muted text-muted-foreground"
+                              }`}
+                            >
+                              {isDone && !isActive ? "✓ " : ""}
+                              {step.label}
+                            </div>
+                          );
+                        })}
+                      </div>
                       
                       {jobStatus.error && (
-                        <p className="text-sm text-red-600">{jobStatus.error}</p>
+                        <p className="text-sm text-red-600 mt-2">{jobStatus.error}</p>
                       )}
                     </div>
                   )}
