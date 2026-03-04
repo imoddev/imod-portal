@@ -4,13 +4,13 @@ import {
   Newspaper, 
   DollarSign, 
   Video, 
-  ClipboardList,
   TrendingUp,
   Clock,
   ExternalLink,
 } from "lucide-react";
 import { fetchAllRecentArticles, getTodayArticleCount } from "@/lib/wordpress";
 import Link from "next/link";
+import { AttendanceCard } from "@/components/dashboard/attendance-card";
 
 export const revalidate = 300; // Revalidate every 5 minutes
 
@@ -45,14 +45,7 @@ export default async function DashboardPage() {
       icon: Video,
       color: "text-purple-600",
     },
-    {
-      title: "Activities Today",
-      value: "24",
-      change: "From 6 members",
-      icon: ClipboardList,
-      color: "text-orange-600",
-    },
-  ];
+    ];
 
   return (
     <div className="space-y-6">
@@ -66,6 +59,9 @@ export default async function DashboardPage() {
 
       {/* Stats Grid */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        {/* Attendance Card - Interactive */}
+        <AttendanceCard />
+        
         {stats.map((stat) => (
           <Card key={stat.title}>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
