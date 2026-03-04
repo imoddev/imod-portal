@@ -77,7 +77,7 @@ export default function LongToShortPage() {
 
   const checkApiStatus = async () => {
     try {
-      const res = await fetch(`${API_URL}/health`);
+      const res = await fetch(`${API_URL}/health`, { mode: "cors" });
       if (res.ok) {
         setApiStatus("online");
         fetchFiles();
@@ -92,7 +92,7 @@ export default function LongToShortPage() {
   // Fetch files in queue
   const fetchFiles = async () => {
     try {
-      const res = await fetch(`${API_URL}/files`);
+      const res = await fetch(`${API_URL}/files`, { mode: "cors" });
       if (res.ok) {
         const data = await res.json();
         setFiles(data.files || []);
@@ -122,6 +122,7 @@ export default function LongToShortPage() {
       const res = await fetch(`${API_URL}/upload`, {
         method: "POST",
         body: formData,
+        mode: "cors",
       });
 
       clearInterval(progressInterval);
@@ -160,7 +161,7 @@ export default function LongToShortPage() {
     if (!confirm("ต้องการลบไฟล์นี้?")) return;
 
     try {
-      const res = await fetch(`${API_URL}/files/${jobId}`, { method: "DELETE" });
+      const res = await fetch(`${API_URL}/files/${jobId}`, { method: "DELETE", mode: "cors" });
       if (res.ok) {
         fetchFiles();
         if (selectedFile?.id === jobId) {
@@ -184,6 +185,7 @@ export default function LongToShortPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ clipCount, maxDuration }),
+        mode: "cors",
       });
 
       if (res.ok) {
@@ -200,7 +202,7 @@ export default function LongToShortPage() {
   const pollStatus = async (jobId: string) => {
     const poll = async () => {
       try {
-        const res = await fetch(`${API_URL}/status/${jobId}`);
+        const res = await fetch(`${API_URL}/status/${jobId}`, { mode: "cors" });
         if (res.ok) {
           const status = await res.json();
           setJobStatus(status);
