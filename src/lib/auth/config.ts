@@ -6,13 +6,6 @@ export const authConfig = {
   // Default: false (invite-only mode)
   allowPublicSignup: false,
 
-  // Whitelisted emails that can login (when allowPublicSignup is false)
-  // Admin can add emails here or manage via admin panel later
-  allowedEmails: [
-    // Add allowed emails here
-    // "user@gmail.com",
-  ] as string[],
-
   // Whitelisted domains (all emails from these domains can login)
   allowedDomains: [
     "modmedia.asia",
@@ -20,17 +13,13 @@ export const authConfig = {
 };
 
 // Helper function to check if email is allowed
-export function isEmailAllowed(email: string): boolean {
+// This is used for static checks only (domains)
+export function isEmailAllowedStatic(email: string): boolean {
   const lowerEmail = email.toLowerCase();
   const domain = lowerEmail.split("@")[1];
 
   // If public signup is enabled, allow everyone
   if (authConfig.allowPublicSignup) {
-    return true;
-  }
-
-  // Check if email is in whitelist
-  if (authConfig.allowedEmails.includes(lowerEmail)) {
     return true;
   }
 

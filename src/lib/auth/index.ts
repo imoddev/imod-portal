@@ -1,6 +1,6 @@
 import NextAuth from "next-auth";
 import Google from "next-auth/providers/google";
-import { isEmailAllowed } from "./config";
+import { isEmailAllowed } from "./check-email";
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   providers: [
@@ -21,8 +21,9 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       const email = user.email;
       if (!email) return false;
 
-      // Check if email is allowed (based on config)
-      if (!isEmailAllowed(email)) {
+      // Check if email is allowed (based on config + Employee table)
+      const allowed = await isEmailAllowed(email);
+      if (!allowed) {
         // Return error URL with message
         return "/login?error=AccessDenied";
       }
