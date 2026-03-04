@@ -1,0 +1,27 @@
+import { SidebarProvider, SidebarTrigger, SidebarInset } from "@/components/ui/sidebar";
+import { AppSidebar } from "@/components/layout/app-sidebar";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { Separator } from "@/components/ui/separator";
+
+export default function DashboardLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <TooltipProvider>
+      <SidebarProvider>
+        <AppSidebar />
+        <SidebarInset>
+          <header className="flex h-14 items-center gap-2 border-b px-4">
+            <SidebarTrigger />
+            <Separator orientation="vertical" className="h-6" />
+            <div className="flex-1" />
+            {/* Add header actions here */}
+          </header>
+          <main className="flex-1 p-4 md:p-6">{children}</main>
+        </SidebarInset>
+      </SidebarProvider>
+    </TooltipProvider>
+  );
+}

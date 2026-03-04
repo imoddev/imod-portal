@@ -1,0 +1,510 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// NextAuth Models
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// App Models
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?
+  
+  // iMoD specific fields
+  department    String?   @default("content-it")
+  role          String    @default("member")
+  jobTitle      String?
+  managerId     String?
+  
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  accounts      Account[]
+  sessions      Session[]
+  activities    Activity[]
+  leads         Lead[]
+  projects      ProjectAssignment[]
+}
+
+model Activity {
+  id          String   @id @default(cuid())
+  userId      String
+  type        String   // article, video, shooting, editing, sales, meeting, other
+  title       String
+  description String?
+  metadata    String?  // JSON string for extra data
+  date        DateTime @default(now())
+  createdAt   DateTime @default(now())
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([date])
+}
+
+model NewsItem {
+  id          String   @id @default(cuid())
+  
+  // From Google Sheet
+  sheetRowId  Int?     @unique  // Original row index from sheet
+  date        String?            // Date from sheet (YYYY-MM-DD)
+  time        String?            // Time from sheet (HH:MM)
+  source      String             // News source (e.g., 9to5Mac)
+  category    String             // Category (e.g., Apple, EV)
+  title       String
+  sourceUrl   String
+  summary     String?
+  selectedBy  String?            // Who added to sheet
+  team        String?            // it/ev
+  
+  // Portal fields
+  status      String   @default("available") // available, claimed, drafting, published
+  claimedBy   String?            // User who claimed
+  claimedAt   DateTime?
+  draftUrl    String?            // WordPress draft URL
+  publishedUrl String?           // Published article URL
+  publishedAt DateTime?
+  notes       String?
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([status])
+  @@index([date])
+  @@index([team])
+}
+
+model Lead {
+  id           String    @id @default(cuid())
+  companyName  String
+  contactName  String
+  contactEmail String?
+  contactPhone String?
+  status       String    @default("new") // new, contacted, proposal, negotiation, won, lost
+  value        Float?
+  notes        String?
+  nextFollowUp DateTime?
+  assignedTo   String
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  assignee     User      @relation(fields: [assignedTo], references: [id])
+
+  @@index([assignedTo])
+  @@index([status])
+}
+
+model Project {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  status      String   @default("backlog") // backlog, in-progress, review, done
+  dueDate     DateTime?
+  driveLink   String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  assignments ProjectAssignment[]
+
+  @@index([status])
+}
+
+model ProjectAssignment {
+  id        String   @id @default(cuid())
+  projectId String
+  userId    String
+  role      String   @default("member") // lead, member
+  
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, userId])
+}
+
+// ========== Comments & Feedback ==========
+
+model Comment {
+  id           String   @id @default(cuid())
+  
+  targetType   String   // news, draft, article, task
+  targetId     String   // ID of the target
+  
+  authorId     String   // Discord ID or user ID
+  authorName   String
+  content      String
+  
+  parentId     String?  // For replies
+  
+  mentions     String?  // JSON array of mentioned user IDs
+  
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([targetType, targetId])
+  @@index([authorId])
+  @@index([parentId])
+}
+
+// ========== Audit Log ==========
+
+model AuditLog {
+  id           String   @id @default(cuid())
+  
+  userId       String
+  userName     String
+  
+  action       String   // create, update, delete, claim, publish, approve, reject
+  targetType   String   // news, draft, leave, asset, etc.
+  targetId     String?
+  targetTitle  String?
+  
+  details      String?  // JSON string with additional details
+  ipAddress    String?
+  userAgent    String?
+  
+  createdAt    DateTime @default(now())
+
+  @@index([userId])
+  @@index([action])
+  @@index([targetType])
+  @@index([createdAt])
+}
+
+// ========== Templates ==========
+
+model Template {
+  id           String   @id @default(cuid())
+  
+  name         String
+  type         String   // intro, conclusion, style, snippet
+  category     String?  // Apple, EV, AI, etc.
+  
+  content      String
+  variables    String?  // JSON array of variables like {{title}}, {{source}}
+  
+  authorId     String?
+  authorName   String?
+  
+  isPublic     Boolean  @default(true)
+  usageCount   Int      @default(0)
+  
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([type])
+  @@index([category])
+}
+
+// ========== Team Directory ==========
+
+model Employee {
+  id            String   @id @default(cuid())
+  
+  discordId     String?  @unique
+  email         String?  @unique
+  name          String
+  nickname      String?
+  
+  department    String   // content-it, content-ev, revenue, production, creative, dev, management
+  jobTitle      String?
+  role          String   @default("member") // admin, manager, lead, member
+  
+  phone         String?
+  lineId        String?
+  profileImage  String?
+  
+  managerId     String?  // Employee ID of manager
+  startDate     DateTime?
+  
+  salary        Float?   // เงินเดือน (ไม่แสดงทั่วไป)
+  bankAccount   String?  // เลขบัญชี
+  bankName      String?
+  
+  isActive      Boolean  @default(true)
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([department])
+  @@index([isActive])
+}
+
+// ========== Timesheet / Attendance ==========
+
+model Attendance {
+  id           String   @id @default(cuid())
+  
+  employeeId   String
+  employeeName String
+  date         DateTime
+  
+  checkIn      DateTime?
+  checkOut     DateTime?
+  
+  workType     String   @default("office") // office, wfh, field, leave
+  location     String?  // สถานที่ (กรณี field work)
+  
+  totalHours   Float?
+  otHours      Float?
+  
+  notes        String?
+  
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([employeeId, date])
+  @@index([employeeId])
+  @@index([date])
+}
+
+// ========== Asset Management ==========
+
+model Asset {
+  id           String   @id @default(cuid())
+  
+  name         String
+  category     String   // camera, lens, mic, tripod, drone, car, laptop, other
+  brand        String?
+  model        String?
+  serialNumber String?
+  
+  status       String   @default("available") // available, in-use, maintenance, retired
+  condition    String   @default("good") // excellent, good, fair, poor
+  
+  purchaseDate DateTime?
+  purchasePrice Float?
+  currentValue Float?
+  
+  location     String?  // ที่เก็บ
+  notes        String?
+  image        String?
+  
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  borrowings   AssetBorrowing[]
+
+  @@index([category])
+  @@index([status])
+}
+
+model AssetBorrowing {
+  id           String   @id @default(cuid())
+  
+  assetId      String
+  borrowerId   String   // Employee ID
+  borrowerName String
+  
+  borrowDate   DateTime
+  dueDate      DateTime?
+  returnDate   DateTime?
+  
+  purpose      String?  // วัตถุประสงค์
+  projectName  String?
+  
+  status       String   @default("borrowed") // borrowed, returned, overdue
+  condition    String?  // สภาพเมื่อคืน
+  notes        String?
+  
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  asset        Asset    @relation(fields: [assetId], references: [id])
+
+  @@index([assetId])
+  @@index([borrowerId])
+  @@index([status])
+}
+
+// ========== Content Calendar ==========
+
+model ContentPlan {
+  id           String   @id @default(cuid())
+  
+  title        String
+  site         String   // imod, imoddrive
+  category     String?
+  
+  plannedDate  DateTime
+  publishedDate DateTime?
+  
+  assigneeId   String?
+  assigneeName String?
+  
+  type         String   @default("article") // article, video, review, news
+  status       String   @default("planned") // planned, writing, editing, scheduled, published, cancelled
+  
+  sourceUrl    String?
+  draftUrl     String?
+  publishedUrl String?
+  
+  priority     String   @default("normal") // low, normal, high, urgent
+  notes        String?
+  
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([site])
+  @@index([plannedDate])
+  @@index([status])
+  @@index([assigneeId])
+}
+
+// ========== HR System ==========
+
+// Leave Balance - วันลาคงเหลือของแต่ละคน
+model LeaveBalance {
+  id           String   @id @default(cuid())
+  
+  employeeId   String   // Discord ID or email
+  employeeName String
+  year         Int      @default(2026)
+  
+  // วันลาที่ได้รับ (quota)
+  sickLeaveQuota      Int @default(30)   // ลาป่วย 30 วัน/ปี
+  personalLeaveQuota  Int @default(6)    // ลากิจ 6 วัน/ปี
+  annualLeaveQuota    Int @default(6)    // ลาพักร้อน 6 วัน/ปี (เพิ่มตามอายุงาน)
+  
+  // วันลาที่ใช้ไป
+  sickLeaveUsed       Int @default(0)
+  personalLeaveUsed   Int @default(0)
+  annualLeaveUsed     Int @default(0)
+  
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([employeeId, year])
+  @@index([employeeId])
+}
+
+// Leave Request - คำขอลา
+model LeaveRequest {
+  id           String   @id @default(cuid())
+  
+  employeeId   String   // Discord ID or email
+  employeeName String
+  department   String?
+  
+  leaveType    String   // sick, personal, annual, maternity, military, ordination, other
+  startDate    DateTime
+  endDate      DateTime
+  totalDays    Float    // รองรับลาครึ่งวัน (0.5)
+  
+  reason       String
+  attachment   String?  // URL to medical certificate, etc.
+  
+  status       String   @default("pending") // pending, approved, rejected, cancelled
+  approvedBy   String?
+  approvedAt   DateTime?
+  rejectReason String?
+  
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([employeeId])
+  @@index([status])
+  @@index([startDate])
+}
+
+// Overtime Request - คำขอ OT
+model OvertimeRequest {
+  id           String   @id @default(cuid())
+  
+  employeeId   String
+  employeeName String
+  department   String?
+  
+  date         DateTime
+  startTime    String   // เวลาเริ่ม OT (e.g., "18:00")
+  endTime      String   // เวลาสิ้นสุด (e.g., "21:00")
+  totalHours   Float
+  
+  otType       String   @default("normal") // normal, holiday, special
+  multiplier   Float    @default(1.5)      // 1.5x, 2x, 3x
+  
+  reason       String
+  projectName  String?  // ชื่องาน/โปรเจค
+  
+  status       String   @default("pending") // pending, approved, rejected, cancelled
+  approvedBy   String?
+  approvedAt   DateTime?
+  rejectReason String?
+  
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([employeeId])
+  @@index([status])
+  @@index([date])
+}
+
+// Allowance Request - คำขอเบี้ยเลี้ยง
+model AllowanceRequest {
+  id            String   @id @default(cuid())
+  
+  employeeId    String
+  employeeName  String
+  department    String?
+  
+  allowanceType String   // travel, meal, accommodation, fuel, phone, other
+  date          DateTime
+  amount        Float    // จำนวนเงิน (บาท)
+  
+  description   String   // รายละเอียด
+  destination   String?  // สถานที่ (กรณีเดินทาง)
+  receipt       String?  // URL to receipt image
+  
+  status        String   @default("pending") // pending, approved, rejected, cancelled
+  approvedBy    String?
+  approvedAt    DateTime?
+  rejectReason  String?
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([employeeId])
+  @@index([status])
+  @@index([date])
+}

@@ -1,0 +1,353 @@
+"use client";
+
+import { useState, useEffect } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
+import {
+  Users,
+  Plus,
+  Search,
+  Phone,
+  Mail,
+  Briefcase,
+  Loader2,
+  Building2,
+} from "lucide-react";
+
+interface Employee {
+  id: string;
+  name: string;
+  nickname: string | null;
+  email: string | null;
+  phone: string | null;
+  department: string;
+  jobTitle: string | null;
+  role: string;
+  profileImage: string | null;
+  isActive: boolean;
+}
+
+const departments = [
+  { id: "management", name: "Management", color: "bg-purple-500" },
+  { id: "content-it", name: "Content IT", color: "bg-blue-500" },
+  { id: "content-ev", name: "Content EV", color: "bg-green-500" },
+  { id: "revenue", name: "Revenue", color: "bg-yellow-500" },
+  { id: "production", name: "Production", color: "bg-red-500" },
+  { id: "creative", name: "Creative", color: "bg-pink-500" },
+  { id: "dev", name: "Development", color: "bg-gray-500" },
+];
+
+const roles = [
+  { id: "admin", name: "Admin" },
+  { id: "manager", name: "Manager" },
+  { id: "lead", name: "Lead" },
+  { id: "member", name: "Member" },
+];
+
+export default function TeamPage() {
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [grouped, setGrouped] = useState<Record<string, Employee[]>>({});
+  const [isLoading, setIsLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filterDept, setFilterDept] = useState("all");
+  const [showAddDialog, setShowAddDialog] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const [form, setForm] = useState({
+    name: "",
+    nickname: "",
+    email: "",
+    phone: "",
+    department: "",
+    jobTitle: "",
+    role: "member",
+  });
+
+  useEffect(() => {
+    fetchEmployees();
+  }, []);
+
+  const fetchEmployees = async () => {
+    setIsLoading(true);
+    try {
+      const res = await fetch("/api/team?active=true");
+      if (res.ok) {
+        const data = await res.json();
+        setEmployees(data.employees || []);
+        setGrouped(data.grouped || {});
+      }
+    } catch (e) {
+      console.error("Error:", e);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSubmit = async () => {
+    if (!form.name || !form.department) {
+      alert("กรุณากรอกชื่อและแผนก");
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const res = await fetch("/api/team", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form),
+      });
+
+      if (res.ok) {
+        setShowAddDialog(false);
+        setForm({ name: "", nickname: "", email: "", phone: "", department: "", jobTitle: "", role: "member" });
+        fetchEmployees();
+      }
+    } catch (e) {
+      console.error("Error:", e);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Filter employees
+  const filteredEmployees = employees.filter(emp => {
+    const matchSearch = emp.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                       emp.nickname?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                       emp.email?.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchDept = filterDept === "all" || emp.department === filterDept;
+    return matchSearch && matchDept;
+  });
+
+  // Group filtered
+  const filteredGrouped = filteredEmployees.reduce((acc: Record<string, Employee[]>, emp) => {
+    if (!acc[emp.department]) acc[emp.department] = [];
+    acc[emp.department].push(emp);
+    return acc;
+  }, {});
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold flex items-center gap-2">
+            <Users className="h-6 w-6 text-primary" />
+            Team Directory
+          </h1>
+          <p className="text-muted-foreground">
+            รายชื่อทีมงาน iMoD ({employees.length} คน)
+          </p>
+        </div>
+        <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
+          <DialogTrigger asChild>
+            <Button>
+              <Plus className="h-4 w-4 mr-2" />
+              เพิ่มพนักงาน
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>เพิ่มพนักงานใหม่</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>ชื่อ-สกุล *</Label>
+                  <Input
+                    value={form.name}
+                    onChange={(e) => setForm({ ...form, name: e.target.value })}
+                    placeholder="ชื่อจริง นามสกุล"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>ชื่อเล่น</Label>
+                  <Input
+                    value={form.nickname}
+                    onChange={(e) => setForm({ ...form, nickname: e.target.value })}
+                    placeholder="ชื่อเล่น"
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>แผนก *</Label>
+                  <Select value={form.department} onValueChange={(v) => setForm({ ...form, department: v })}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="เลือกแผนก" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {departments.map((d) => (
+                        <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>ตำแหน่ง</Label>
+                  <Input
+                    value={form.jobTitle}
+                    onChange={(e) => setForm({ ...form, jobTitle: e.target.value })}
+                    placeholder="ตำแหน่งงาน"
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Email</Label>
+                  <Input
+                    type="email"
+                    value={form.email}
+                    onChange={(e) => setForm({ ...form, email: e.target.value })}
+                    placeholder="email@modmedia.asia"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>เบอร์โทร</Label>
+                  <Input
+                    value={form.phone}
+                    onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                    placeholder="08x-xxx-xxxx"
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label>Role</Label>
+                <Select value={form.role} onValueChange={(v) => setForm({ ...form, role: v })}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {roles.map((r) => (
+                      <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShowAddDialog(false)}>ยกเลิก</Button>
+              <Button onClick={handleSubmit} disabled={isSubmitting}>
+                {isSubmitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                บันทึก
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </div>
+
+      {/* Filters */}
+      <div className="flex gap-4">
+        <div className="relative flex-1 max-w-sm">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            className="pl-10"
+            placeholder="ค้นหาชื่อ..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+        </div>
+        <Select value={filterDept} onValueChange={setFilterDept}>
+          <SelectTrigger className="w-[200px]">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">ทุกแผนก</SelectItem>
+            {departments.map((d) => (
+              <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* Team Grid by Department */}
+      {isLoading ? (
+        <div className="flex justify-center py-12">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      ) : Object.keys(filteredGrouped).length === 0 ? (
+        <Card>
+          <CardContent className="py-12 text-center text-muted-foreground">
+            <Users className="h-12 w-12 mx-auto mb-2 opacity-20" />
+            <p>ยังไม่มีข้อมูลพนักงาน</p>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="space-y-6">
+          {departments.map((dept) => {
+            const deptEmployees = filteredGrouped[dept.id];
+            if (!deptEmployees || deptEmployees.length === 0) return null;
+
+            return (
+              <Card key={dept.id}>
+                <CardHeader className="pb-3">
+                  <CardTitle className="flex items-center gap-2">
+                    <div className={`w-3 h-3 rounded-full ${dept.color}`} />
+                    {dept.name}
+                    <Badge variant="secondary">{deptEmployees.length}</Badge>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                    {deptEmployees.map((emp) => (
+                      <div
+                        key={emp.id}
+                        className="flex items-center gap-4 p-4 rounded-lg border hover:bg-accent/50 transition-colors"
+                      >
+                        <Avatar className="h-12 w-12">
+                          <AvatarImage src={emp.profileImage || undefined} />
+                          <AvatarFallback className={dept.color + " text-white"}>
+                            {emp.name.slice(0, 2)}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium truncate">
+                            {emp.name}
+                            {emp.nickname && <span className="text-muted-foreground"> ({emp.nickname})</span>}
+                          </p>
+                          <p className="text-sm text-muted-foreground flex items-center gap-1">
+                            <Briefcase className="h-3 w-3" />
+                            {emp.jobTitle || emp.role}
+                          </p>
+                          {emp.phone && (
+                            <p className="text-xs text-muted-foreground flex items-center gap-1">
+                              <Phone className="h-3 w-3" />
+                              {emp.phone}
+                            </p>
+                          )}
+                        </div>
+                        {emp.role !== "member" && (
+                          <Badge variant="outline" className="text-xs">
+                            {roles.find(r => r.id === emp.role)?.name}
+                          </Badge>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
