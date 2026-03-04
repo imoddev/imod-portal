@@ -1,5 +1,30 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { headers } from "next/headers";
+import { IMOD_OFFICE, getLocationStatus } from "@/lib/geo-utils";
+
+// Get client IP from request headers
+async function getClientIp(request: NextRequest): Promise<string> {
+  const headersList = await headers();
+  
+  // Check various headers for client IP
+  const forwardedFor = headersList.get("x-forwarded-for");
+  if (forwardedFor) {
+    return forwardedFor.split(",")[0].trim();
+  }
+  
+  const realIp = headersList.get("x-real-ip");
+  if (realIp) {
+    return realIp;
+  }
+  
+  const cfConnectingIp = headersList.get("cf-connecting-ip");
+  if (cfConnectingIp) {
+    return cfConnectingIp;
+  }
+  
+  return "unknown";
+}
 
 // GET /api/timesheet - List attendance records
 export async function GET(request: NextRequest) {
@@ -40,6 +65,8 @@ export async function GET(request: NextRequest) {
       fieldDays: records.filter(r => r.workType === "field").length,
       totalHours: records.reduce((sum, r) => sum + (r.totalHours || 0), 0),
       totalOT: records.reduce((sum, r) => sum + (r.otHours || 0), 0),
+      verifiedDays: records.filter(r => r.locationStatus === "verified").length,
+      suspiciousDays: records.filter(r => r.locationStatus === "suspicious").length,
     };
 
     return NextResponse.json({
@@ -67,6 +94,12 @@ export async function POST(request: NextRequest) {
       workType,
       location,
       notes,
+      // Location data
+      latitude,
+      longitude,
+      accuracy,
+      distance,
+      isWithinOffice,
     } = body;
 
     if (!employeeId || !employeeName || !action) {
@@ -75,6 +108,9 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+
+    // Get client IP
+    const clientIp = await getClientIp(request);
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -91,11 +127,20 @@ export async function POST(request: NextRequest) {
 
     if (action === "checkin") {
       if (record) {
-        // Already checked in
         return NextResponse.json({
           success: false,
           error: "วันนี้ลงเวลาเข้างานแล้ว",
         }, { status: 400 });
+      }
+
+      // Determine location status
+      let locationStatus: string = "unavailable";
+      
+      if (latitude !== undefined && longitude !== undefined) {
+        const status = getLocationStatus(workType || "office", latitude, longitude);
+        locationStatus = status.status;
+      } else if (workType === "wfh") {
+        locationStatus = "remote";
       }
 
       record = await prisma.attendance.create({
@@ -107,8 +152,37 @@ export async function POST(request: NextRequest) {
           workType: workType || "office",
           location,
           notes,
+          // Location verification
+          checkInLat: latitude,
+          checkInLng: longitude,
+          checkInAccuracy: accuracy,
+          checkInIp: clientIp,
+          checkInDistance: distance,
+          locationStatus,
         },
       });
+
+      // Log to audit
+      await prisma.auditLog.create({
+        data: {
+          userId: employeeId,
+          userName: employeeName,
+          action: "checkin",
+          targetType: "timesheet",
+          targetId: record.id,
+          targetTitle: `Check-in: ${workType}`,
+          details: JSON.stringify({
+            workType,
+            latitude,
+            longitude,
+            distance,
+            isWithinOffice,
+            locationStatus,
+          }),
+          ipAddress: clientIp,
+        },
+      });
+      
     } else if (action === "checkout") {
       if (!record) {
         return NextResponse.json({
@@ -136,6 +210,29 @@ export async function POST(request: NextRequest) {
           totalHours: Math.round(totalHours * 100) / 100,
           otHours: Math.round(otHours * 100) / 100,
           notes: notes || record.notes,
+          // Check-out location
+          checkOutLat: latitude,
+          checkOutLng: longitude,
+          checkOutIp: clientIp,
+        },
+      });
+
+      // Log to audit
+      await prisma.auditLog.create({
+        data: {
+          userId: employeeId,
+          userName: employeeName,
+          action: "checkout",
+          targetType: "timesheet",
+          targetId: record.id,
+          targetTitle: `Check-out: ${totalHours.toFixed(1)}h`,
+          details: JSON.stringify({
+            totalHours,
+            otHours,
+            latitude,
+            longitude,
+          }),
+          ipAddress: clientIp,
         },
       });
     }

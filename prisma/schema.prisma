@@ -289,6 +289,21 @@ model Attendance {
   totalHours   Float?
   otHours      Float?
   
+  // Location Verification (Check-in)
+  checkInLat       Float?
+  checkInLng       Float?
+  checkInAccuracy  Float?    // GPS accuracy in meters
+  checkInIp        String?
+  checkInDistance  Float?    // Distance from office in km
+  
+  // Location Verification (Check-out)
+  checkOutLat      Float?
+  checkOutLng      Float?
+  checkOutIp       String?
+  
+  // Location Status
+  locationStatus   String?   // verified, suspicious, remote, unavailable
+  
   notes        String?
   
   createdAt    DateTime @default(now())
@@ -297,6 +312,7 @@ model Attendance {
   @@unique([employeeId, date])
   @@index([employeeId])
   @@index([date])
+  @@index([locationStatus])
 }
 
 // ========== Asset Management ==========

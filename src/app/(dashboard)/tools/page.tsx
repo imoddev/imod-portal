@@ -24,6 +24,8 @@ import {
   Video,
   Youtube,
   ArrowRight,
+  Wand2,
+  Palette,
 } from "lucide-react";
 
 interface DuplicateResult {
@@ -230,6 +232,38 @@ export default function ToolsPage() {
             <Button asChild className="w-full">
               <Link href="/tools/report-generator">
                 <Youtube className="h-4 w-4 mr-2" />
+                เปิดใช้งาน
+                <ArrowRight className="h-4 w-4 ml-auto" />
+              </Link>
+            </Button>
+          </CardContent>
+        </Card>
+
+        {/* Prompt Generator */}
+        <Card className="border-2 border-primary/20 hover:border-primary/40 transition-colors">
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base flex items-center gap-2">
+                <div className="p-2 bg-gradient-to-r from-pink-100 to-purple-100 rounded-lg">
+                  <Wand2 className="h-5 w-5 text-purple-600" />
+                </div>
+                Prompt Generator
+              </CardTitle>
+              <Badge className="bg-gradient-to-r from-pink-100 to-purple-100 text-purple-700">Creative</Badge>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              สร้าง AI Prompt สำหรับภาพ Feature Image, YouTube Thumbnail
+            </p>
+            <ul className="text-xs text-muted-foreground space-y-1">
+              <li>✓ Gemini, ChatGPT, Midjourney</li>
+              <li>✓ Style Presets พร้อมใช้</li>
+              <li>✓ iMoD Brand Guidelines</li>
+            </ul>
+            <Button asChild className="w-full">
+              <Link href="/tools/prompt-generator">
+                <Palette className="h-4 w-4 mr-2" />
                 เปิดใช้งาน
                 <ArrowRight className="h-4 w-4 ml-auto" />
               </Link>
