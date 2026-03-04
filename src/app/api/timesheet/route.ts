@@ -57,7 +57,7 @@ export async function GET(request: NextRequest) {
       take: 100,
     });
 
-    // Calculate summary
+    // Calculate summary (cast to any for new fields that may not exist yet)
     const summary = {
       totalDays: records.length,
       officeDays: records.filter(r => r.workType === "office").length,
@@ -65,8 +65,8 @@ export async function GET(request: NextRequest) {
       fieldDays: records.filter(r => r.workType === "field").length,
       totalHours: records.reduce((sum, r) => sum + (r.totalHours || 0), 0),
       totalOT: records.reduce((sum, r) => sum + (r.otHours || 0), 0),
-      verifiedDays: records.filter(r => r.locationStatus === "verified").length,
-      suspiciousDays: records.filter(r => r.locationStatus === "suspicious").length,
+      verifiedDays: records.filter(r => (r as any).locationStatus === "verified").length,
+      suspiciousDays: records.filter(r => (r as any).locationStatus === "suspicious").length,
     };
 
     return NextResponse.json({
@@ -143,24 +143,45 @@ export async function POST(request: NextRequest) {
         locationStatus = "remote";
       }
 
-      record = await prisma.attendance.create({
-        data: {
-          employeeId,
-          employeeName,
-          date: today,
-          checkIn: now,
-          workType: workType || "office",
-          location,
-          notes,
-          // Location verification
-          checkInLat: latitude,
-          checkInLng: longitude,
-          checkInAccuracy: accuracy,
-          checkInIp: clientIp,
-          checkInDistance: distance,
-          locationStatus,
-        },
-      });
+      // Build data object (new location fields may not exist in DB yet)
+      const createData: any = {
+        employeeId,
+        employeeName,
+        date: today,
+        checkIn: now,
+        workType: workType || "office",
+        location,
+        notes,
+      };
+      
+      // Add location fields if they exist in schema
+      if (latitude !== undefined) createData.checkInLat = latitude;
+      if (longitude !== undefined) createData.checkInLng = longitude;
+      if (accuracy !== undefined) createData.checkInAccuracy = accuracy;
+      if (clientIp) createData.checkInIp = clientIp;
+      if (distance !== undefined) createData.checkInDistance = distance;
+      if (locationStatus) createData.locationStatus = locationStatus;
+
+      try {
+        record = await prisma.attendance.create({ data: createData });
+      } catch (e: any) {
+        // If new fields don't exist, try without them
+        if (e.code === 'P2009' || e.message?.includes('Unknown field')) {
+          record = await prisma.attendance.create({
+            data: {
+              employeeId,
+              employeeName,
+              date: today,
+              checkIn: now,
+              workType: workType || "office",
+              location,
+              notes,
+            },
+          });
+        } else {
+          throw e;
+        }
+      }
 
       // Log to audit
       await prisma.auditLog.create({
@@ -203,19 +224,40 @@ export async function POST(request: NextRequest) {
       const totalHours = (now.getTime() - checkIn.getTime()) / (1000 * 60 * 60);
       const otHours = Math.max(0, totalHours - 8); // OT = hours over 8
 
-      record = await prisma.attendance.update({
-        where: { id: record.id },
-        data: {
-          checkOut: now,
-          totalHours: Math.round(totalHours * 100) / 100,
-          otHours: Math.round(otHours * 100) / 100,
-          notes: notes || record.notes,
-          // Check-out location
-          checkOutLat: latitude,
-          checkOutLng: longitude,
-          checkOutIp: clientIp,
-        },
-      });
+      // Build update data (new location fields may not exist in DB yet)
+      const updateData: any = {
+        checkOut: now,
+        totalHours: Math.round(totalHours * 100) / 100,
+        otHours: Math.round(otHours * 100) / 100,
+        notes: notes || record.notes,
+      };
+      
+      // Add location fields if available
+      if (latitude !== undefined) updateData.checkOutLat = latitude;
+      if (longitude !== undefined) updateData.checkOutLng = longitude;
+      if (clientIp) updateData.checkOutIp = clientIp;
+
+      try {
+        record = await prisma.attendance.update({
+          where: { id: record.id },
+          data: updateData,
+        });
+      } catch (e: any) {
+        // If new fields don't exist, try without them
+        if (e.code === 'P2009' || e.message?.includes('Unknown field')) {
+          record = await prisma.attendance.update({
+            where: { id: record.id },
+            data: {
+              checkOut: now,
+              totalHours: Math.round(totalHours * 100) / 100,
+              otHours: Math.round(otHours * 100) / 100,
+              notes: notes || record.notes,
+            },
+          });
+        } else {
+          throw e;
+        }
+      }
 
       // Log to audit
       await prisma.auditLog.create({
