@@ -57,6 +57,14 @@ interface JobStatus {
   clips?: Clip[];
   transcript?: string;
   error?: string;
+  currentTool?: string;
+  timing?: {
+    extractAudio?: number;
+    transcribe?: number;
+    analyze?: number;
+    cutting?: number;
+    total?: number;
+  };
 }
 
 export default function LongToShortPage() {
@@ -226,6 +234,14 @@ export default function LongToShortPage() {
     const mins = Math.floor(seconds / 60);
     const secs = Math.floor(seconds % 60);
     return `${mins}:${secs.toString().padStart(2, "0")}`;
+  };
+
+  const formatDuration = (seconds: number) => {
+    if (seconds < 60) return `${seconds} วินาที`;
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    if (secs === 0) return `${mins} นาที`;
+    return `${mins} นาที ${secs} วินาที`;
   };
 
   const getStatusText = (status: string) => {
@@ -496,30 +512,54 @@ export default function LongToShortPage() {
                       {/* Steps Indicator */}
                       <div className="grid grid-cols-4 gap-2 pt-2">
                         {[
-                          { key: "extracting_audio", label: "แยกเสียง", pct: 10 },
-                          { key: "transcribing", label: "ถอดเสียง", pct: 30 },
-                          { key: "analyzing", label: "AI วิเคราะห์", pct: 60 },
-                          { key: "cutting", label: "ตัดคลิป", pct: 80 },
+                          { key: "extracting_audio", label: "แยกเสียง", tool: "FFmpeg", pct: 10, timeKey: "extractAudio" as const },
+                          { key: "transcribing", label: "ถอดเสียง", tool: "whisper.cpp", pct: 30, timeKey: "transcribe" as const },
+                          { key: "analyzing", label: "AI วิเคราะห์", tool: "Qwen 3 8B", pct: 60, timeKey: "analyze" as const },
+                          { key: "cutting", label: "ตัด + Reframe", tool: "FFmpeg", pct: 80, timeKey: "cutting" as const },
                         ].map((step) => {
                           const isActive = jobStatus.status === step.key;
                           const isDone = jobStatus.progress > step.pct;
+                          const stepTime = jobStatus.timing?.[step.timeKey];
                           return (
                             <div
                               key={step.key}
-                              className={`text-center p-2 rounded-lg text-xs transition-all ${
+                              className={`text-center p-2 rounded-lg transition-all ${
                                 isActive
                                   ? "bg-primary/20 text-primary font-medium ring-2 ring-primary"
                                   : isDone
-                                  ? "bg-green-100 text-green-700 dark:bg-green-900/30"
+                                  ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
                                   : "bg-muted text-muted-foreground"
                               }`}
                             >
-                              {isDone && !isActive ? "✓ " : ""}
-                              {step.label}
+                              <div className="text-xs font-medium">
+                                {isDone && !isActive ? "✓ " : ""}
+                                {step.label}
+                              </div>
+                              <div className="text-[10px] opacity-70 mt-0.5">
+                                {step.tool}
+                              </div>
+                              {stepTime !== undefined && (
+                                <div className="text-[10px] mt-0.5 font-mono">
+                                  {stepTime}s
+                                </div>
+                              )}
+                              {isActive && (
+                                <div className="text-[10px] mt-0.5 animate-pulse">
+                                  กำลังทำ...
+                                </div>
+                              )}
                             </div>
                           );
                         })}
                       </div>
+                      
+                      {/* Total Time */}
+                      {jobStatus.timing?.total !== undefined && (
+                        <div className="flex items-center justify-center gap-2 pt-2 text-sm">
+                          <Clock className="h-4 w-4" />
+                          <span>เวลารวม: <strong>{formatDuration(jobStatus.timing.total)}</strong></span>
+                        </div>
+                      )}
                       
                       {jobStatus.error && (
                         <p className="text-sm text-red-600 mt-2">{jobStatus.error}</p>
