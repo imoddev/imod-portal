@@ -6,11 +6,15 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const department = searchParams.get("department");
   const active = searchParams.get("active");
+  const email = searchParams.get("email");
 
   try {
     const where: any = {};
     if (department) where.department = department;
     if (active !== null) where.isActive = active !== "false";
+    if (email) {
+      where.email = { equals: email, mode: "insensitive" };
+    }
 
     const employees = await prisma.employee.findMany({
       where,
