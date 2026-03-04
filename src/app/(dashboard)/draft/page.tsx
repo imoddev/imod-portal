@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -174,7 +174,7 @@ const checklist = [
 
 type TabType = "generate" | "prompt";
 
-export default function DraftPage() {
+function DraftContent() {
   const searchParams = useSearchParams();
   const [activeTab, setActiveTab] = useState<TabType>("generate");
   const [sourceType, setSourceType] = useState("web");
@@ -1193,5 +1193,13 @@ Tags: [แท็ก1, แท็ก2, แท็ก3]
         </>
       )}
     </div>
+  );
+}
+
+export default function DraftPage() {
+  return (
+    <Suspense fallback={<div className="p-8 text-center">Loading...</div>}>
+      <DraftContent />
+    </Suspense>
   );
 }

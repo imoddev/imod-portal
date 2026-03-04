@@ -47,6 +47,8 @@ const COLORS = {
   violet: "#8B5CF6",
   blue: "#3B82F6",
   green: "#22C55E",
+  orange: "#F97316",
+  red: "#EF4444",
 };
 
 // Sample data for charts
@@ -297,7 +299,7 @@ export default function DashboardPage() {
                       border: "1px solid #38383d",
                       borderRadius: "8px",
                     }}
-                    formatter={(value: number) => [`${(value/1000000).toFixed(2)}M`, "Views"]}
+                    formatter={(value) => [`${((value as number || 0)/1000000).toFixed(2)}M`, "Views"]}
                   />
                   <Area 
                     type="monotone" 
@@ -474,7 +476,7 @@ export default function DashboardPage() {
                         border: "1px solid #38383d",
                         borderRadius: "8px",
                       }}
-                      formatter={(value: number) => [`${value}%`, ""]}
+                      formatter={(value) => [`${value || 0}%`, ""]}
                     />
                   </PieChart>
                 </ResponsiveContainer>
