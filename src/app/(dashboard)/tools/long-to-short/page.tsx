@@ -77,6 +77,8 @@ export default function LongToShortPage() {
   const [clipCount, setClipCount] = useState(3);
   const [maxDuration, setMaxDuration] = useState(60);
   const [apiStatus, setApiStatus] = useState<"checking" | "online" | "offline">("checking");
+  const [mode, setMode] = useState<"shorts" | "highlight">("shorts");
+  const [highlightDuration, setHighlightDuration] = useState(180); // 3 minutes default
 
   // Check API status
   useEffect(() => {
@@ -192,7 +194,12 @@ export default function LongToShortPage() {
       const res = await fetch(`${API_URL}/process/${selectedFile.id}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ clipCount, maxDuration }),
+        body: JSON.stringify({ 
+          mode,
+          clipCount, 
+          maxDuration,
+          highlightDuration,
+        }),
         mode: "cors",
       });
 
@@ -433,35 +440,101 @@ export default function LongToShortPage() {
                     </div>
                   </div>
 
-                  {/* Settings */}
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <div className="space-y-3">
-                      <label className="text-sm font-medium">
-                        จำนวนคลิป: {clipCount}
-                      </label>
-                      <Slider
-                        value={[clipCount]}
-                        onValueChange={(v) => setClipCount(v[0])}
-                        min={1}
-                        max={10}
-                        step={1}
-                        disabled={isProcessing}
-                      />
-                    </div>
-                    <div className="space-y-3">
-                      <label className="text-sm font-medium">
-                        ความยาวสูงสุด: {maxDuration}s
-                      </label>
-                      <Slider
-                        value={[maxDuration]}
-                        onValueChange={(v) => setMaxDuration(v[0])}
-                        min={15}
-                        max={180}
-                        step={15}
-                        disabled={isProcessing}
-                      />
-                    </div>
+                  {/* Mode Selection */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <button
+                      onClick={() => setMode("shorts")}
+                      disabled={isProcessing}
+                      className={`p-4 rounded-xl border-2 transition-all text-left ${
+                        mode === "shorts"
+                          ? "border-primary bg-primary/10"
+                          : "border-muted hover:border-primary/50"
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 mb-1">
+                        <Scissors className="h-5 w-5" />
+                        <span className="font-semibold">Short Clips</span>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        ตัดเป็นหลายคลิปสั้นๆ สำหรับ TikTok/Reels
+                      </p>
+                    </button>
+                    <button
+                      onClick={() => setMode("highlight")}
+                      disabled={isProcessing}
+                      className={`p-4 rounded-xl border-2 transition-all text-left ${
+                        mode === "highlight"
+                          ? "border-primary bg-primary/10"
+                          : "border-muted hover:border-primary/50"
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 mb-1">
+                        <Sparkles className="h-5 w-5" />
+                        <span className="font-semibold">Highlight/Trailer</span>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        สรุปเป็นคลิปเดียว 2-4 นาที เหมือน trailer
+                      </p>
+                    </button>
                   </div>
+
+                  {/* Settings based on mode */}
+                  {mode === "shorts" ? (
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <div className="space-y-3">
+                        <label className="text-sm font-medium">
+                          จำนวนคลิป: {clipCount}
+                        </label>
+                        <Slider
+                          value={[clipCount]}
+                          onValueChange={(v) => setClipCount(v[0])}
+                          min={1}
+                          max={10}
+                          step={1}
+                          disabled={isProcessing}
+                        />
+                      </div>
+                      <div className="space-y-3">
+                        <label className="text-sm font-medium">
+                          ความยาวสูงสุด/คลิป: {maxDuration}s
+                        </label>
+                        <Slider
+                          value={[maxDuration]}
+                          onValueChange={(v) => setMaxDuration(v[0])}
+                          min={15}
+                          max={180}
+                          step={15}
+                          disabled={isProcessing}
+                        />
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      <div className="space-y-3">
+                        <label className="text-sm font-medium">
+                          ความยาว Highlight: {Math.floor(highlightDuration / 60)}:{(highlightDuration % 60).toString().padStart(2, '0')} นาที
+                        </label>
+                        <Slider
+                          value={[highlightDuration]}
+                          onValueChange={(v) => setHighlightDuration(v[0])}
+                          min={120}
+                          max={300}
+                          step={30}
+                          disabled={isProcessing}
+                        />
+                        <div className="flex justify-between text-xs text-muted-foreground">
+                          <span>2 นาที</span>
+                          <span>5 นาที</span>
+                        </div>
+                      </div>
+                      <div className="p-3 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800">
+                        <p className="text-sm text-amber-800 dark:text-amber-200">
+                          🎬 <strong>Trailer Mode:</strong> AI จะวิเคราะห์โครงเรื่องจาก transcript 
+                          แล้วเรียบเรียงเนื้อหาให้ดึงดูดความสนใจ เล่าตั้งแต่ต้นจนจบแบบกระชับ
+                        </p>
+                      </div>
+                    </div>
+                  )}
 
                   {/* Process Button */}
                   <Button
