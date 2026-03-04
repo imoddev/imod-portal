@@ -32,7 +32,11 @@ import {
   Loader2,
   Pencil,
   Trash2,
+  LayoutGrid,
+  GitBranch,
 } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { OrgChart } from "@/components/team/org-chart";
 
 interface Employee {
   id: string;
@@ -90,6 +94,7 @@ export default function TeamPage() {
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [form, setForm] = useState(emptyForm);
+  const [viewMode, setViewMode] = useState<"list" | "org">("list");
 
   useEffect(() => {
     fetchEmployees();
@@ -374,30 +379,57 @@ export default function TeamPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Filters */}
-      <div className="flex gap-4">
-        <div className="relative flex-1 max-w-sm">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            className="pl-10"
-            placeholder="ค้นหาชื่อ..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-        </div>
-        <Select value={filterDept} onValueChange={setFilterDept}>
-          <SelectTrigger className="w-[200px]">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">ทุกแผนก</SelectItem>
-            {departments.map((d) => (
-              <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
+      {/* View Mode Tabs */}
+      <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as "list" | "org")}>
+        <div className="flex items-center justify-between">
+          <TabsList>
+            <TabsTrigger value="list" className="gap-2">
+              <LayoutGrid className="h-4 w-4" />
+              รายชื่อ
+            </TabsTrigger>
+            <TabsTrigger value="org" className="gap-2">
+              <GitBranch className="h-4 w-4" />
+              Org Chart
+            </TabsTrigger>
+          </TabsList>
 
+          {viewMode === "list" && (
+            <div className="flex gap-4">
+              <div className="relative flex-1 max-w-sm">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  className="pl-10"
+                  placeholder="ค้นหาชื่อ..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+              </div>
+              <Select value={filterDept} onValueChange={setFilterDept}>
+                <SelectTrigger className="w-[200px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">ทุกแผนก</SelectItem>
+                  {departments.map((d) => (
+                    <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+        </div>
+
+        {/* Org Chart View */}
+        <TabsContent value="org" className="mt-6">
+          <Card>
+            <CardContent className="pt-6">
+              <OrgChart />
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* List View */}
+        <TabsContent value="list" className="mt-6">
       {/* Team Grid by Department */}
       {isLoading ? (
         <div className="flex justify-center py-12">
@@ -476,6 +508,8 @@ export default function TeamPage() {
           })}
         </div>
       )}
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
