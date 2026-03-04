@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useSession } from "next-auth/react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -68,17 +69,50 @@ export default function TimesheetPage() {
   const [location, setLocation] = useState("");
   const [notes, setNotes] = useState("");
 
-  // Mock current employee
-  const currentEmployee = {
-    id: "1465635163466633308",
-    name: "พี่ต้อม",
+  // Get current employee from session
+  const { data: session } = useSession();
+  const [currentEmployee, setCurrentEmployee] = useState<{ id: string; name: string } | null>(null);
+
+  // Fetch employee data on mount
+  useEffect(() => {
+    if (session?.user?.email) {
+      fetchEmployeeData();
+    }
+  }, [session]);
+
+  const fetchEmployeeData = async () => {
+    try {
+      const res = await fetch(`/api/team?email=${encodeURIComponent(session?.user?.email || "")}`);
+      if (res.ok) {
+        const data = await res.json();
+        const emp = data.employees?.[0];
+        if (emp) {
+          setCurrentEmployee({
+            id: emp.discordId || emp.id,
+            name: emp.nickname || emp.name,
+          });
+        } else {
+          // Fallback to session user
+          setCurrentEmployee({
+            id: session?.user?.email || "unknown",
+            name: session?.user?.name || "Unknown User",
+          });
+        }
+      }
+    } catch (e) {
+      console.error("Error fetching employee:", e);
+    }
   };
 
   useEffect(() => {
-    fetchData();
-  }, [selectedMonth]);
+    if (currentEmployee) {
+      fetchData();
+    }
+  }, [selectedMonth, currentEmployee]);
 
   const fetchData = async () => {
+    if (!currentEmployee) return;
+    
     setIsLoading(true);
     try {
       // Fetch month records
@@ -104,6 +138,8 @@ export default function TimesheetPage() {
   };
 
   const handleCheckIn = async () => {
+    if (!currentEmployee) return;
+    
     setIsProcessing(true);
     try {
       const res = await fetch("/api/timesheet", {
@@ -134,6 +170,8 @@ export default function TimesheetPage() {
   };
 
   const handleCheckOut = async () => {
+    if (!currentEmployee) return;
+    
     setIsProcessing(true);
     try {
       const res = await fetch("/api/timesheet", {
