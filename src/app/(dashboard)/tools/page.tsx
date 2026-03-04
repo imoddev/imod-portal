@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import Link from "next/link";
 import {
   Wrench,
   Link2,
@@ -18,6 +19,11 @@ import {
   CheckCircle2,
   ExternalLink,
   FileSearch,
+  Scissors,
+  FileBarChart,
+  Video,
+  Youtube,
+  ArrowRight,
 } from "lucide-react";
 
 interface DuplicateResult {
@@ -161,8 +167,80 @@ export default function ToolsPage() {
           Tools
         </h1>
         <p className="text-muted-foreground">
-          เครื่องมือช่วยงาน Content
+          เครื่องมือช่วยงาน Content & Production
         </p>
+      </div>
+
+      {/* Featured Tools */}
+      <div className="grid gap-4 md:grid-cols-2">
+        {/* Long to Short */}
+        <Card className="border-2 border-primary/20 hover:border-primary/40 transition-colors">
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base flex items-center gap-2">
+                <div className="p-2 bg-purple-100 rounded-lg">
+                  <Scissors className="h-5 w-5 text-purple-600" />
+                </div>
+                Long to Short
+              </CardTitle>
+              <Badge className="bg-purple-100 text-purple-700">Production</Badge>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              ตัดคลิปยาวเป็น Shorts/Reels อัตโนมัติด้วย AI
+            </p>
+            <ul className="text-xs text-muted-foreground space-y-1">
+              <li>✓ Whisper.cpp ถอดเสียงภาษาไทย</li>
+              <li>✓ AI หา highlights อัตโนมัติ</li>
+              <li>✓ Face-aware crop 9:16</li>
+            </ul>
+            <Button asChild className="w-full">
+              <Link href="/tools/long-to-short">
+                <Video className="h-4 w-4 mr-2" />
+                เปิดใช้งาน
+                <ArrowRight className="h-4 w-4 ml-auto" />
+              </Link>
+            </Button>
+          </CardContent>
+        </Card>
+
+        {/* Report Generator */}
+        <Card className="border-2 border-primary/20 hover:border-primary/40 transition-colors">
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base flex items-center gap-2">
+                <div className="p-2 bg-pink-100 rounded-lg">
+                  <FileBarChart className="h-5 w-5 text-pink-600" />
+                </div>
+                Report Generator
+              </CardTitle>
+              <Badge className="bg-pink-100 text-pink-700">Revenue</Badge>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              สร้างรายงานสถิติ YouTube แบบมืออาชีพ
+            </p>
+            <ul className="text-xs text-muted-foreground space-y-1">
+              <li>✓ YouTube Analytics Data</li>
+              <li>✓ AI Summary ภาษาไทย</li>
+              <li>✓ Export PDF / LINE / Email</li>
+            </ul>
+            <Button asChild className="w-full">
+              <Link href="/tools/report-generator">
+                <Youtube className="h-4 w-4 mr-2" />
+                เปิดใช้งาน
+                <ArrowRight className="h-4 w-4 ml-auto" />
+              </Link>
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Other Tools */}
+      <div className="pt-4">
+        <h2 className="text-lg font-semibold mb-4">เครื่องมืออื่นๆ</h2>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
