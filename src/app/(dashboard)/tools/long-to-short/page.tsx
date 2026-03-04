@@ -658,15 +658,45 @@ export default function LongToShortPage() {
                                 </span>
                               </div>
                               <p className="text-xs line-clamp-2">{clip.title}</p>
-                              <Button size="sm" className="w-full" asChild>
-                                <a
-                                  href={`${API_URL}/download/${selectedFile.id}/${clip.filename}`}
-                                  download
+                              <div className="space-y-2">
+                                <Button size="sm" className="w-full" asChild>
+                                  <a
+                                    href={`${API_URL}/download/${selectedFile.id}/${clip.filename}`}
+                                    download={clip.filename}
+                                  >
+                                    <Download className="h-3 w-3 mr-1" />
+                                    Download
+                                  </a>
+                                </Button>
+                                <Button 
+                                  size="sm" 
+                                  variant="outline"
+                                  className="w-full"
+                                  onClick={async () => {
+                                    try {
+                                      const response = await fetch(`${API_URL}/download/${selectedFile.id}/${clip.filename}`);
+                                      const blob = await response.blob();
+                                      const file = new File([blob], clip.filename, { type: 'video/mp4' });
+                                      
+                                      if (navigator.share && navigator.canShare({ files: [file] })) {
+                                        await navigator.share({
+                                          files: [file],
+                                          title: clip.title,
+                                        });
+                                      } else {
+                                        // Fallback: open in new tab
+                                        window.open(`${API_URL}/download/${selectedFile.id}/${clip.filename}`, '_blank');
+                                      }
+                                    } catch (err) {
+                                      console.error('Share failed:', err);
+                                      alert('ไม่สามารถแชร์ได้ กรุณาใช้ปุ่ม Download');
+                                    }
+                                  }}
                                 >
-                                  <Download className="h-3 w-3 mr-1" />
-                                  Download
-                                </a>
-                              </Button>
+                                  <Play className="h-3 w-3 mr-1" />
+                                  Save to Photos
+                                </Button>
+                              </div>
                             </CardContent>
                           </Card>
                         ))}
