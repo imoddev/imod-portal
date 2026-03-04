@@ -1,6 +1,22 @@
 import NextAuth from "next-auth";
 import Google from "next-auth/providers/google";
-import { isEmailAllowed } from "./check-email";
+import { authConfig } from "./config";
+
+// Static check for allowed domains (no database call)
+function isEmailAllowedStatic(email: string): boolean {
+  const lowerEmail = email.toLowerCase();
+  const domain = lowerEmail.split("@")[1];
+
+  if (authConfig.allowPublicSignup) {
+    return true;
+  }
+
+  if (authConfig.allowedDomains.includes(domain)) {
+    return true;
+  }
+
+  return false;
+}
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   providers: [
@@ -21,14 +37,34 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       const email = user.email;
       if (!email) return false;
 
-      // Check if email is allowed (based on config + Employee table)
-      const allowed = await isEmailAllowed(email);
-      if (!allowed) {
-        // Return error URL with message
-        return "/login?error=AccessDenied";
+      // First check static allowlist (domains)
+      if (isEmailAllowedStatic(email)) {
+        return true;
       }
 
-      return true;
+      // If not in static allowlist, check database via API
+      // Note: In Edge runtime, we can't use Prisma directly
+      // So we call our own API endpoint
+      try {
+        const baseUrl = process.env.NEXTAUTH_URL || "https://imod-portal.vercel.app";
+        const res = await fetch(`${baseUrl}/api/auth/check-email`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email }),
+        });
+        
+        if (res.ok) {
+          const data = await res.json();
+          if (data.allowed) {
+            return true;
+          }
+        }
+      } catch (error) {
+        console.error("Error checking email via API:", error);
+      }
+
+      // Return error URL with message
+      return "/login?error=AccessDenied";
     },
     async jwt({ token, user }) {
       if (user) {
