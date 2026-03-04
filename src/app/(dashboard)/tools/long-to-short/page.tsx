@@ -114,43 +114,44 @@ export default function LongToShortPage() {
     formData.append("video", file);
 
     try {
-      const xhr = new XMLHttpRequest();
-      
-      xhr.upload.onprogress = (event) => {
-        if (event.lengthComputable) {
-          const percent = Math.round((event.loaded / event.total) * 100);
-          setUploadProgress(percent);
-        }
-      };
+      // Simulate progress for large files
+      const progressInterval = setInterval(() => {
+        setUploadProgress((prev) => Math.min(prev + 5, 90));
+      }, 500);
 
-      xhr.onload = () => {
-        if (xhr.status === 200) {
-          const data = JSON.parse(xhr.responseText);
-          fetchFiles();
-          setSelectedFile({
-            id: data.jobId,
-            filename: data.filename,
-            originalName: data.originalName,
-            size: data.size,
-            sizeFormatted: data.sizeFormatted,
-            createdAt: new Date().toISOString(),
-            status: "ready",
-            progress: 0,
-          });
-        }
-        setIsUploading(false);
-      };
+      const res = await fetch(`${API_URL}/upload`, {
+        method: "POST",
+        body: formData,
+      });
 
-      xhr.onerror = () => {
-        console.error("Upload error");
-        setIsUploading(false);
-      };
+      clearInterval(progressInterval);
+      setUploadProgress(100);
 
-      xhr.open("POST", `${API_URL}/upload`);
-      xhr.send(formData);
+      if (res.ok) {
+        const data = await res.json();
+        fetchFiles();
+        setSelectedFile({
+          id: data.jobId,
+          filename: data.filename,
+          originalName: data.originalName,
+          size: data.size,
+          sizeFormatted: data.sizeFormatted,
+          createdAt: new Date().toISOString(),
+          status: "ready",
+          progress: 0,
+        });
+      } else {
+        const error = await res.json();
+        console.error("Upload error:", error);
+        alert(`อัปโหลดไม่สำเร็จ: ${error.error || "Unknown error"}`);
+      }
     } catch (error) {
       console.error("Upload error:", error);
+      alert("ไม่สามารถเชื่อมต่อ API ได้");
+    } finally {
       setIsUploading(false);
+      // Reset file input
+      e.target.value = "";
     }
   };
 
