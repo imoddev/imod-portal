@@ -515,7 +515,7 @@ export default function LongToShortPage() {
                           { key: "extracting_audio", label: "แยกเสียง", tool: "FFmpeg", pct: 10, timeKey: "extractAudio" as const },
                           { key: "transcribing", label: "ถอดเสียง", tool: "whisper.cpp", pct: 30, timeKey: "transcribe" as const },
                           { key: "analyzing", label: "AI วิเคราะห์", tool: "Qwen 3 8B", pct: 60, timeKey: "analyze" as const },
-                          { key: "cutting", label: "ตัด + Reframe", tool: "YOLO + FFmpeg", pct: 80, timeKey: "cutting" as const },
+                          { key: "cutting", label: "ตัด + Reframe", tool: "YOLOv11 + MediaPipe", pct: 80, timeKey: "cutting" as const },
                         ].map((step) => {
                           const isActive = jobStatus.status === step.key;
                           const isDone = jobStatus.progress > step.pct;
