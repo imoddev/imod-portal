@@ -1,10 +1,8 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Slider } from "@/components/ui/slider";
@@ -21,8 +19,26 @@ import {
   FileVideo,
   Sparkles,
   ArrowLeft,
+  Trash2,
+  RefreshCw,
+  HardDrive,
+  FolderOpen,
+  Server,
 } from "lucide-react";
 import Link from "next/link";
+
+const API_URL = "https://shorts-api.iphonemod.net";
+
+interface QueueFile {
+  id: string;
+  filename: string;
+  originalName: string;
+  size: number;
+  sizeFormatted: string;
+  createdAt: string;
+  status: string;
+  progress: number;
+}
 
 interface Clip {
   id: number;
@@ -31,144 +47,193 @@ interface Clip {
   duration: number;
   title: string;
   reason: string;
-  thumbnail?: string;
+  filename: string;
 }
 
-interface ProcessingStatus {
-  stage: "idle" | "uploading" | "transcribing" | "analyzing" | "cutting" | "done" | "error";
+interface JobStatus {
+  id: string;
+  status: string;
   progress: number;
-  message: string;
+  clips?: Clip[];
+  transcript?: string;
+  error?: string;
 }
 
 export default function LongToShortPage() {
-  const [file, setFile] = useState<File | null>(null);
+  const [files, setFiles] = useState<QueueFile[]>([]);
+  const [selectedFile, setSelectedFile] = useState<QueueFile | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [jobStatus, setJobStatus] = useState<JobStatus | null>(null);
   const [clipCount, setClipCount] = useState(3);
   const [maxDuration, setMaxDuration] = useState(60);
-  const [status, setStatus] = useState<ProcessingStatus>({
-    stage: "idle",
-    progress: 0,
-    message: "",
-  });
-  const [clips, setClips] = useState<Clip[]>([]);
-  const [transcript, setTranscript] = useState("");
-  const [videoInfo, setVideoInfo] = useState<{
-    duration: number;
-    resolution: string;
-    filename: string;
-  } | null>(null);
+  const [apiStatus, setApiStatus] = useState<"checking" | "online" | "offline">("checking");
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedFile = e.target.files?.[0];
-    if (selectedFile) {
-      setFile(selectedFile);
-      setClips([]);
-      setStatus({ stage: "idle", progress: 0, message: "" });
-      
-      // Get video info
-      const video = document.createElement("video");
-      video.preload = "metadata";
-      video.onloadedmetadata = () => {
-        setVideoInfo({
-          duration: Math.round(video.duration),
-          resolution: `${video.videoWidth}x${video.videoHeight}`,
-          filename: selectedFile.name,
-        });
-        URL.revokeObjectURL(video.src);
-      };
-      video.src = URL.createObjectURL(selectedFile);
+  // Check API status
+  useEffect(() => {
+    checkApiStatus();
+  }, []);
+
+  const checkApiStatus = async () => {
+    try {
+      const res = await fetch(`${API_URL}/health`);
+      if (res.ok) {
+        setApiStatus("online");
+        fetchFiles();
+      } else {
+        setApiStatus("offline");
+      }
+    } catch {
+      setApiStatus("offline");
     }
   };
 
-  const processVideo = async () => {
+  // Fetch files in queue
+  const fetchFiles = async () => {
+    try {
+      const res = await fetch(`${API_URL}/files`);
+      if (res.ok) {
+        const data = await res.json();
+        setFiles(data.files || []);
+      }
+    } catch (error) {
+      console.error("Error fetching files:", error);
+    }
+  };
+
+  // Upload file
+  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
     if (!file) return;
 
+    setIsUploading(true);
+    setUploadProgress(0);
+
+    const formData = new FormData();
+    formData.append("video", file);
+
     try {
-      // Stage 1: Upload
-      setStatus({ stage: "uploading", progress: 10, message: "กำลังอัปโหลดวิดีโอ..." });
+      const xhr = new XMLHttpRequest();
       
-      const formData = new FormData();
-      formData.append("video", file);
-      formData.append("clipCount", clipCount.toString());
-      formData.append("maxDuration", maxDuration.toString());
+      xhr.upload.onprogress = (event) => {
+        if (event.lengthComputable) {
+          const percent = Math.round((event.loaded / event.total) * 100);
+          setUploadProgress(percent);
+        }
+      };
 
-      const uploadRes = await fetch("/api/tools/long-to-short/upload", {
-        method: "POST",
-        body: formData,
-      });
+      xhr.onload = () => {
+        if (xhr.status === 200) {
+          const data = JSON.parse(xhr.responseText);
+          fetchFiles();
+          setSelectedFile({
+            id: data.jobId,
+            filename: data.filename,
+            originalName: data.originalName,
+            size: data.size,
+            sizeFormatted: data.sizeFormatted,
+            createdAt: new Date().toISOString(),
+            status: "ready",
+            progress: 0,
+          });
+        }
+        setIsUploading(false);
+      };
 
-      if (!uploadRes.ok) throw new Error("Upload failed");
-      const { jobId, audioPath } = await uploadRes.json();
+      xhr.onerror = () => {
+        console.error("Upload error");
+        setIsUploading(false);
+      };
 
-      // Stage 2: Transcribe
-      setStatus({ stage: "transcribing", progress: 30, message: "กำลังถอดเสียง (whisper.cpp)..." });
-      
-      const transcribeRes = await fetch("/api/tools/long-to-short/transcribe", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ jobId, audioPath }),
-      });
-
-      if (!transcribeRes.ok) throw new Error("Transcription failed");
-      const { transcript: transcriptText } = await transcribeRes.json();
-      setTranscript(transcriptText);
-
-      // Stage 3: AI Analysis
-      setStatus({ stage: "analyzing", progress: 60, message: "AI กำลังหา highlights..." });
-
-      const analyzeRes = await fetch("/api/tools/long-to-short/analyze", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
-          jobId, 
-          transcript: transcriptText,
-          clipCount,
-          maxDuration 
-        }),
-      });
-
-      if (!analyzeRes.ok) throw new Error("Analysis failed");
-      const { highlights } = await analyzeRes.json();
-
-      // Stage 4: Cut clips
-      setStatus({ stage: "cutting", progress: 80, message: "กำลังตัดคลิป..." });
-
-      const cutRes = await fetch("/api/tools/long-to-short/cut", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ jobId, highlights }),
-      });
-
-      if (!cutRes.ok) throw new Error("Cutting failed");
-      const { clips: resultClips } = await cutRes.json();
-
-      setClips(resultClips);
-      setStatus({ stage: "done", progress: 100, message: "เสร็จสิ้น!" });
-
+      xhr.open("POST", `${API_URL}/upload`);
+      xhr.send(formData);
     } catch (error) {
-      console.error("Processing error:", error);
-      setStatus({ 
-        stage: "error", 
-        progress: 0, 
-        message: `เกิดข้อผิดพลาด: ${error instanceof Error ? error.message : "Unknown error"}` 
-      });
+      console.error("Upload error:", error);
+      setIsUploading(false);
     }
+  };
+
+  // Delete file
+  const handleDelete = async (jobId: string) => {
+    if (!confirm("ต้องการลบไฟล์นี้?")) return;
+
+    try {
+      const res = await fetch(`${API_URL}/files/${jobId}`, { method: "DELETE" });
+      if (res.ok) {
+        fetchFiles();
+        if (selectedFile?.id === jobId) {
+          setSelectedFile(null);
+        }
+      }
+    } catch (error) {
+      console.error("Delete error:", error);
+    }
+  };
+
+  // Process video
+  const handleProcess = async () => {
+    if (!selectedFile) return;
+
+    setIsProcessing(true);
+    setJobStatus({ id: selectedFile.id, status: "starting", progress: 0 });
+
+    try {
+      const res = await fetch(`${API_URL}/process/${selectedFile.id}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ clipCount, maxDuration }),
+      });
+
+      if (res.ok) {
+        // Poll for status
+        pollStatus(selectedFile.id);
+      }
+    } catch (error) {
+      console.error("Process error:", error);
+      setIsProcessing(false);
+    }
+  };
+
+  // Poll job status
+  const pollStatus = async (jobId: string) => {
+    const poll = async () => {
+      try {
+        const res = await fetch(`${API_URL}/status/${jobId}`);
+        if (res.ok) {
+          const status = await res.json();
+          setJobStatus(status);
+
+          if (status.status === "done" || status.status === "error") {
+            setIsProcessing(false);
+            fetchFiles();
+          } else {
+            setTimeout(poll, 2000);
+          }
+        }
+      } catch (error) {
+        console.error("Poll error:", error);
+        setIsProcessing(false);
+      }
+    };
+    poll();
   };
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
+    const secs = Math.floor(seconds % 60);
     return `${mins}:${secs.toString().padStart(2, "0")}`;
   };
 
-  const getStageIcon = () => {
-    switch (status.stage) {
-      case "uploading": return <Upload className="h-5 w-5 animate-pulse" />;
-      case "transcribing": return <FileVideo className="h-5 w-5 animate-pulse" />;
-      case "analyzing": return <Sparkles className="h-5 w-5 animate-pulse" />;
-      case "cutting": return <Scissors className="h-5 w-5 animate-pulse" />;
-      case "done": return <CheckCircle2 className="h-5 w-5 text-green-600" />;
-      case "error": return <AlertCircle className="h-5 w-5 text-red-600" />;
-      default: return null;
+  const getStatusText = (status: string) => {
+    switch (status) {
+      case "extracting_audio": return "กำลังแยกเสียง...";
+      case "transcribing": return "กำลังถอดเสียง (whisper.cpp)...";
+      case "analyzing": return "AI กำลังวิเคราะห์...";
+      case "cutting": return "กำลังตัดคลิป...";
+      case "done": return "เสร็จสิ้น!";
+      case "error": return "เกิดข้อผิดพลาด";
+      default: return status;
     }
   };
 
@@ -181,7 +246,7 @@ export default function LongToShortPage() {
             <ArrowLeft className="h-4 w-4" />
           </Button>
         </Link>
-        <div>
+        <div className="flex-1">
           <h1 className="text-2xl font-bold flex items-center gap-2">
             <Scissors className="h-6 w-6" />
             Long to Short
@@ -190,231 +255,284 @@ export default function LongToShortPage() {
             ตัดคลิปยาวเป็น Shorts/Reels อัตโนมัติด้วย AI
           </p>
         </div>
+        
+        {/* API Status */}
+        <div className="flex items-center gap-2">
+          <Server className="h-4 w-4" />
+          {apiStatus === "checking" ? (
+            <Badge variant="outline"><Loader2 className="h-3 w-3 animate-spin mr-1" />Checking...</Badge>
+          ) : apiStatus === "online" ? (
+            <Badge className="bg-green-100 text-green-700"><CheckCircle2 className="h-3 w-3 mr-1" />Mac Studio Online</Badge>
+          ) : (
+            <Badge className="bg-red-100 text-red-700"><AlertCircle className="h-3 w-3 mr-1" />Offline</Badge>
+          )}
+        </div>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-3">
-        {/* Upload & Settings */}
-        <Card className="lg:col-span-2">
-          <CardHeader>
-            <CardTitle className="text-base">อัปโหลดวิดีโอ</CardTitle>
-            <CardDescription>
-              รองรับ MP4, MOV, MKV (สูงสุด 2GB)
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            {/* File Upload */}
-            <div className="space-y-2">
-              <Label>ไฟล์วิดีโอ</Label>
-              <div className="border-2 border-dashed rounded-lg p-6 text-center hover:bg-muted/50 transition-colors">
+      {apiStatus === "offline" && (
+        <Card className="border-red-200 bg-red-50">
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-3 text-red-700">
+              <AlertCircle className="h-5 w-5" />
+              <div>
+                <p className="font-medium">Mac Studio API Offline</p>
+                <p className="text-sm">กรุณาตรวจสอบว่า long-to-short-api กำลังรันอยู่</p>
+              </div>
+              <Button variant="outline" size="sm" onClick={checkApiStatus} className="ml-auto">
+                <RefreshCw className="h-4 w-4 mr-1" />
+                ลองใหม่
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {apiStatus === "online" && (
+        <div className="grid gap-6 lg:grid-cols-3">
+          {/* File Queue */}
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <FolderOpen className="h-4 w-4" />
+                  คิวไฟล์รอตัด
+                </CardTitle>
+                <Button variant="ghost" size="sm" onClick={fetchFiles}>
+                  <RefreshCw className="h-4 w-4" />
+                </Button>
+              </div>
+              <CardDescription>
+                ไฟล์ที่อัปโหลดไว้ใน Mac Studio
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {/* Upload Button */}
+              <div className="border-2 border-dashed rounded-lg p-4 text-center hover:bg-muted/50 transition-colors">
                 <input
                   type="file"
                   accept="video/*"
-                  onChange={handleFileChange}
+                  onChange={handleUpload}
                   className="hidden"
                   id="video-upload"
+                  disabled={isUploading}
                 />
                 <label htmlFor="video-upload" className="cursor-pointer">
-                  {file ? (
+                  {isUploading ? (
                     <div className="space-y-2">
-                      <Video className="h-10 w-10 mx-auto text-primary" />
-                      <p className="font-medium">{file.name}</p>
-                      {videoInfo && (
-                        <div className="flex items-center justify-center gap-4 text-sm text-muted-foreground">
-                          <span className="flex items-center gap-1">
-                            <Clock className="h-3 w-3" />
-                            {formatTime(videoInfo.duration)}
-                          </span>
-                          <span>{videoInfo.resolution}</span>
-                          <span>{(file.size / 1024 / 1024).toFixed(1)} MB</span>
-                        </div>
-                      )}
+                      <Loader2 className="h-8 w-8 mx-auto animate-spin text-primary" />
+                      <p className="text-sm">กำลังอัปโหลด... {uploadProgress}%</p>
+                      <Progress value={uploadProgress} className="h-2" />
                     </div>
                   ) : (
                     <div className="space-y-2">
-                      <Upload className="h-10 w-10 mx-auto text-muted-foreground" />
-                      <p className="text-muted-foreground">
-                        คลิกเพื่อเลือกไฟล์ หรือลากไฟล์มาวาง
+                      <Upload className="h-8 w-8 mx-auto text-muted-foreground" />
+                      <p className="text-sm text-muted-foreground">
+                        อัปโหลดไฟล์ (สูงสุด 10GB)
                       </p>
                     </div>
                   )}
                 </label>
               </div>
-            </div>
 
-            {/* Settings */}
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-3">
-                <Label>จำนวนคลิป: {clipCount}</Label>
-                <Slider
-                  value={[clipCount]}
-                  onValueChange={(v) => setClipCount(v[0])}
-                  min={1}
-                  max={10}
-                  step={1}
-                />
+              {/* File List */}
+              <div className="space-y-2 max-h-80 overflow-y-auto">
+                {files.length === 0 ? (
+                  <p className="text-sm text-muted-foreground text-center py-4">
+                    ยังไม่มีไฟล์ในคิว
+                  </p>
+                ) : (
+                  files.map((file) => (
+                    <div
+                      key={file.id}
+                      onClick={() => setSelectedFile(file)}
+                      className={`p-3 rounded-lg border cursor-pointer transition-colors ${
+                        selectedFile?.id === file.id
+                          ? "border-primary bg-primary/5"
+                          : "hover:bg-muted/50"
+                      }`}
+                    >
+                      <div className="flex items-start gap-3">
+                        <Video className="h-8 w-8 text-muted-foreground shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium text-sm truncate">
+                            {file.originalName}
+                          </p>
+                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                            <HardDrive className="h-3 w-3" />
+                            {file.sizeFormatted}
+                          </div>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-red-500 hover:text-red-700 hover:bg-red-50"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDelete(file.id);
+                          }}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                      {file.status !== "ready" && (
+                        <div className="mt-2">
+                          <Badge variant="secondary" className="text-xs">
+                            {file.status}
+                          </Badge>
+                        </div>
+                      )}
+                    </div>
+                  ))
+                )}
               </div>
-              <div className="space-y-3">
-                <Label>ความยาวสูงสุด: {maxDuration} วินาที</Label>
-                <Slider
-                  value={[maxDuration]}
-                  onValueChange={(v) => setMaxDuration(v[0])}
-                  min={15}
-                  max={180}
-                  step={15}
-                />
-              </div>
-            </div>
+            </CardContent>
+          </Card>
 
-            {/* Process Button */}
-            <Button
-              onClick={processVideo}
-              disabled={!file || status.stage !== "idle" && status.stage !== "done" && status.stage !== "error"}
-              className="w-full"
-              size="lg"
-            >
-              {status.stage !== "idle" && status.stage !== "done" && status.stage !== "error" ? (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              ) : (
-                <Sparkles className="h-4 w-4 mr-2" />
-              )}
-              เริ่มประมวลผล
-            </Button>
-
-            {/* Progress */}
-            {status.stage !== "idle" && (
-              <div className="space-y-2">
-                <div className="flex items-center gap-2">
-                  {getStageIcon()}
-                  <span className="text-sm font-medium">{status.message}</span>
+          {/* Processing Panel */}
+          <Card className="lg:col-span-2">
+            <CardHeader>
+              <CardTitle className="text-base">ประมวลผล</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {!selectedFile ? (
+                <div className="text-center py-12 text-muted-foreground">
+                  <FileVideo className="h-12 w-12 mx-auto mb-2 opacity-20" />
+                  <p>เลือกไฟล์จากคิวเพื่อเริ่มตัด</p>
                 </div>
-                <Progress value={status.progress} />
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Info Panel */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">วิธีการทำงาน</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4 text-sm">
-            <div className="flex gap-3">
-              <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground text-xs font-bold">
-                1
-              </div>
-              <div>
-                <p className="font-medium">Transcribe</p>
-                <p className="text-muted-foreground">
-                  ถอดเสียงด้วย whisper.cpp (รองรับภาษาไทย)
-                </p>
-              </div>
-            </div>
-            <div className="flex gap-3">
-              <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground text-xs font-bold">
-                2
-              </div>
-              <div>
-                <p className="font-medium">AI Analysis</p>
-                <p className="text-muted-foreground">
-                  วิเคราะห์หา highlights ด้วย Llama/Qwen
-                </p>
-              </div>
-            </div>
-            <div className="flex gap-3">
-              <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground text-xs font-bold">
-                3
-              </div>
-              <div>
-                <p className="font-medium">Smart Crop</p>
-                <p className="text-muted-foreground">
-                  ตัด + Crop 9:16 แบบ face-aware
-                </p>
-              </div>
-            </div>
-
-            <div className="pt-4 border-t">
-              <p className="font-medium mb-2">⚡ Performance</p>
-              <ul className="text-muted-foreground space-y-1">
-                <li>• วิดีโอ 7 นาที → ~2-3 นาที</li>
-                <li>• 100% ประมวลผลใน Mac Studio</li>
-                <li>• ไม่ส่งข้อมูลออก Cloud</li>
-              </ul>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Results */}
-      {clips.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base flex items-center gap-2">
-              <CheckCircle2 className="h-5 w-5 text-green-600" />
-              ผลลัพธ์ — {clips.length} คลิป
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {clips.map((clip) => (
-                <Card key={clip.id} className="overflow-hidden">
-                  <div className="aspect-[9/16] bg-muted flex items-center justify-center">
-                    {clip.thumbnail ? (
-                      <img 
-                        src={clip.thumbnail} 
-                        alt={clip.title}
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <Video className="h-12 w-12 text-muted-foreground" />
-                    )}
+              ) : (
+                <>
+                  {/* Selected File Info */}
+                  <div className="p-4 bg-muted/50 rounded-lg">
+                    <div className="flex items-center gap-3">
+                      <Video className="h-10 w-10 text-primary" />
+                      <div>
+                        <p className="font-medium">{selectedFile.originalName}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {selectedFile.sizeFormatted}
+                        </p>
+                      </div>
+                    </div>
                   </div>
-                  <CardContent className="p-3 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <Badge variant="secondary">
-                        Clip {clip.id}
-                      </Badge>
-                      <span className="text-sm text-muted-foreground">
-                        {formatTime(clip.duration)}
-                      </span>
+
+                  {/* Settings */}
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div className="space-y-3">
+                      <label className="text-sm font-medium">
+                        จำนวนคลิป: {clipCount}
+                      </label>
+                      <Slider
+                        value={[clipCount]}
+                        onValueChange={(v) => setClipCount(v[0])}
+                        min={1}
+                        max={10}
+                        step={1}
+                        disabled={isProcessing}
+                      />
                     </div>
-                    <p className="text-sm font-medium line-clamp-2">
-                      {clip.title}
-                    </p>
-                    <p className="text-xs text-muted-foreground line-clamp-2">
-                      {clip.reason}
-                    </p>
-                    <div className="flex gap-2 pt-2">
-                      <Button variant="outline" size="sm" className="flex-1">
-                        <Play className="h-3 w-3 mr-1" />
-                        Preview
-                      </Button>
-                      <Button size="sm" className="flex-1">
-                        <Download className="h-3 w-3 mr-1" />
-                        Download
-                      </Button>
+                    <div className="space-y-3">
+                      <label className="text-sm font-medium">
+                        ความยาวสูงสุด: {maxDuration}s
+                      </label>
+                      <Slider
+                        value={[maxDuration]}
+                        onValueChange={(v) => setMaxDuration(v[0])}
+                        min={15}
+                        max={180}
+                        step={15}
+                        disabled={isProcessing}
+                      />
                     </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+                  </div>
+
+                  {/* Process Button */}
+                  <Button
+                    onClick={handleProcess}
+                    disabled={isProcessing}
+                    className="w-full"
+                    size="lg"
+                  >
+                    {isProcessing ? (
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
+                      <Sparkles className="h-4 w-4 mr-2" />
+                    )}
+                    {isProcessing ? "กำลังประมวลผล..." : "เริ่มตัดคลิป"}
+                  </Button>
+
+                  {/* Progress */}
+                  {jobStatus && (
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        {jobStatus.status === "done" ? (
+                          <CheckCircle2 className="h-5 w-5 text-green-600" />
+                        ) : jobStatus.status === "error" ? (
+                          <AlertCircle className="h-5 w-5 text-red-600" />
+                        ) : (
+                          <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                        )}
+                        <span className="text-sm font-medium">
+                          {getStatusText(jobStatus.status)}
+                        </span>
+                      </div>
+                      <Progress value={jobStatus.progress} />
+                      
+                      {jobStatus.error && (
+                        <p className="text-sm text-red-600">{jobStatus.error}</p>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Results */}
+                  {jobStatus?.clips && jobStatus.clips.length > 0 && (
+                    <div className="space-y-3">
+                      <h3 className="font-medium">ผลลัพธ์ ({jobStatus.clips.length} คลิป)</h3>
+                      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                        {jobStatus.clips.map((clip) => (
+                          <Card key={clip.id} className="overflow-hidden">
+                            <div className="aspect-[9/16] bg-muted flex items-center justify-center">
+                              <Video className="h-8 w-8 text-muted-foreground" />
+                            </div>
+                            <CardContent className="p-3 space-y-2">
+                              <div className="flex items-center justify-between">
+                                <Badge variant="secondary">Clip {clip.id}</Badge>
+                                <span className="text-xs text-muted-foreground">
+                                  {formatTime(clip.duration)}
+                                </span>
+                              </div>
+                              <p className="text-xs line-clamp-2">{clip.title}</p>
+                              <Button size="sm" className="w-full" asChild>
+                                <a
+                                  href={`${API_URL}/download/${selectedFile.id}/${clip.filename}`}
+                                  download
+                                >
+                                  <Download className="h-3 w-3 mr-1" />
+                                  Download
+                                </a>
+                              </Button>
+                            </CardContent>
+                          </Card>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+            </CardContent>
+          </Card>
+        </div>
       )}
 
-      {/* Transcript */}
-      {transcript && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Transcript</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="max-h-60 overflow-y-auto p-3 bg-muted rounded-lg text-sm whitespace-pre-wrap">
-              {transcript}
-            </div>
-          </CardContent>
-        </Card>
-      )}
+      {/* Info Panel */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">📁 ที่เก็บไฟล์</CardTitle>
+        </CardHeader>
+        <CardContent className="text-sm text-muted-foreground space-y-1">
+          <p><strong>Temp:</strong> /Users/imodteam/Videos/LongToShort/temp/</p>
+          <p><strong>Output:</strong> /Users/imodteam/Videos/LongToShort/output/</p>
+          <p><strong>API:</strong> shorts-api.iphonemod.net (Mac Studio)</p>
+        </CardContent>
+      </Card>
     </div>
   );
 }
