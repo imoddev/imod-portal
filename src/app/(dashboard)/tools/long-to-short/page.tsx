@@ -91,18 +91,38 @@ export default function LongToShortPage() {
   const [nasFiles, setNasFiles] = useState<NASFile[]>([]);
   const [showNAS, setShowNAS] = useState(false);
   const [loadingNAS, setLoadingNAS] = useState(false);
+  const [nasSearch, setNasSearch] = useState("");
+  const [nasTotal, setNasTotal] = useState(0);
+  const [selectedNASFile, setSelectedNASFile] = useState<string | null>(null);
 
   // Fetch NAS files
-  const fetchNASFiles = async () => {
+  const fetchNASFiles = async (search?: string) => {
     setLoadingNAS(true);
     try {
-      const res = await fetch(`${API_URL}/nas/files`, { mode: "cors" });
+      const params = new URLSearchParams({ limit: "100", sort: "modified" });
+      if (search) params.set("search", search);
+      
+      const res = await fetch(`${API_URL}/nas/files?${params}`, { mode: "cors" });
       if (res.ok) {
         const data = await res.json();
         setNasFiles(data.files || []);
+        setNasTotal(data.total || 0);
       }
     } catch (error) {
       console.error("Error fetching NAS files:", error);
+    } finally {
+      setLoadingNAS(false);
+    }
+  };
+
+  // Refresh NAS index
+  const refreshNASIndex = async () => {
+    setLoadingNAS(true);
+    try {
+      await fetch(`${API_URL}/nas/refresh`, { method: "POST", mode: "cors" });
+      await fetchNASFiles(nasSearch);
+    } catch (error) {
+      console.error("Error refreshing NAS:", error);
     } finally {
       setLoadingNAS(false);
     }
@@ -450,41 +470,79 @@ export default function LongToShortPage() {
                     <h4 className="text-sm font-medium flex items-center gap-2">
                       <HardDrive className="h-4 w-4" />
                       Synology NAS
+                      <Badge variant="secondary" className="text-xs">{nasTotal} ไฟล์</Badge>
                     </h4>
-                    <Button size="sm" variant="ghost" onClick={fetchNASFiles} disabled={loadingNAS}>
+                    <Button size="sm" variant="ghost" onClick={refreshNASIndex} disabled={loadingNAS}>
                       <RefreshCw className={`h-3 w-3 ${loadingNAS ? 'animate-spin' : ''}`} />
                     </Button>
                   </div>
+                  
+                  {/* Search */}
+                  <div className="flex gap-2 mb-2">
+                    <input
+                      type="text"
+                      placeholder="ค้นหาไฟล์..."
+                      value={nasSearch}
+                      onChange={(e) => setNasSearch(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && fetchNASFiles(nasSearch)}
+                      className="flex-1 px-2 py-1 text-sm border rounded"
+                    />
+                    <Button size="sm" variant="outline" onClick={() => fetchNASFiles(nasSearch)}>
+                      🔍
+                    </Button>
+                  </div>
+                  
                   <p className="text-xs text-muted-foreground mb-2">
-                    📁 Video_Creator/Final Cut Export/
+                    📁 Final Cut Export/ (เรียงจากใหม่สุด)
                   </p>
-                  <div className="space-y-1 max-h-40 overflow-y-auto">
+                  
+                  <div className="space-y-1 max-h-60 overflow-y-auto">
                     {loadingNAS ? (
-                      <p className="text-sm text-center py-2">
+                      <p className="text-sm text-center py-4">
                         <Loader2 className="h-4 w-4 animate-spin inline mr-2" />
                         กำลังโหลด...
                       </p>
                     ) : nasFiles.length === 0 ? (
-                      <p className="text-sm text-muted-foreground text-center py-2">
-                        ไม่มีไฟล์ใน Input folder
+                      <p className="text-sm text-muted-foreground text-center py-4">
+                        {nasSearch ? 'ไม่พบไฟล์ที่ค้นหา' : 'ไม่มีไฟล์'}
                       </p>
                     ) : (
                       nasFiles.map((file) => (
                         <div
                           key={file.name}
-                          onClick={() => processFromNAS(file.name)}
-                          className="p-2 rounded border hover:bg-primary/10 cursor-pointer flex items-center gap-2"
+                          onClick={() => setSelectedNASFile(file.name === selectedNASFile ? null : file.name)}
+                          className={`p-2 rounded border cursor-pointer flex items-center gap-2 transition-colors ${
+                            selectedNASFile === file.name 
+                              ? 'border-primary bg-primary/10' 
+                              : 'hover:bg-muted/50'
+                          }`}
                         >
-                          <FileVideo className="h-4 w-4 text-muted-foreground" />
+                          <FileVideo className="h-4 w-4 text-muted-foreground shrink-0" />
                           <div className="flex-1 min-w-0">
                             <p className="text-sm truncate">{file.name}</p>
-                            <p className="text-xs text-muted-foreground">{file.sizeFormatted}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {file.sizeFormatted} • {new Date(file.modified).toLocaleDateString('th-TH')}
+                            </p>
                           </div>
-                          <Play className="h-4 w-4 text-primary" />
+                          {selectedNASFile === file.name && (
+                            <CheckCircle2 className="h-4 w-4 text-primary shrink-0" />
+                          )}
                         </div>
                       ))
                     )}
                   </div>
+                  
+                  {/* Import Button */}
+                  {selectedNASFile && (
+                    <Button 
+                      className="w-full mt-3" 
+                      onClick={() => processFromNAS(selectedNASFile)}
+                      disabled={isProcessing}
+                    >
+                      <Play className="h-4 w-4 mr-2" />
+                      นำเข้าและประมวลผล
+                    </Button>
+                  )}
                 </div>
               )}
 
