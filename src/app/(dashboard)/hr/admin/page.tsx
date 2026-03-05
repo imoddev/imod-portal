@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   CalendarDays,
   Clock,
@@ -86,6 +87,7 @@ const allowanceTypeNames: Record<string, string> = {
 
 export default function HRAdminPage() {
   const [activeTab, setActiveTab] = useState("leave");
+  const [statusFilter, setStatusFilter] = useState<"all" | "pending" | "approved" | "rejected">("all");
   const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>([]);
   const [otRequests, setOTRequests] = useState<OTRequest[]>([]);
   const [allowanceRequests, setAllowanceRequests] = useState<AllowanceRequest[]>([]);
@@ -104,10 +106,11 @@ export default function HRAdminPage() {
   const fetchData = async () => {
     setIsLoading(true);
     try {
+      // Fetch all statuses for admin view
       const [leaveRes, otRes, allowanceRes] = await Promise.all([
-        fetch("/api/hr/leave?status=pending"),
-        fetch("/api/hr/overtime?status=pending"),
-        fetch("/api/hr/allowance?status=pending"),
+        fetch("/api/hr/leave"),
+        fetch("/api/hr/overtime"),
+        fetch("/api/hr/allowance"),
       ]);
 
       if (leaveRes.ok) {
@@ -183,7 +186,23 @@ export default function HRAdminPage() {
     }
   };
 
+  // Filter data based on status
+  const filterByStatus = <T extends { status: string }>(items: T[]) => {
+    if (statusFilter === "all") return items;
+    return items.filter(item => item.status === statusFilter);
+  };
+
+  const filteredLeave = filterByStatus(leaveRequests);
+  const filteredOT = filterByStatus(otRequests);
+  const filteredAllowance = filterByStatus(allowanceRequests);
+
   const pendingCounts = {
+    leave: leaveRequests.filter(r => r.status === "pending").length,
+    ot: otRequests.filter(r => r.status === "pending").length,
+    allowance: allowanceRequests.filter(r => r.status === "pending").length,
+  };
+  
+  const totalCounts = {
     leave: leaveRequests.length,
     ot: otRequests.length,
     allowance: allowanceRequests.length,
@@ -202,13 +221,26 @@ export default function HRAdminPage() {
             จัดการคำขอลา, OT และเบี้ยเลี้ยง
           </p>
         </div>
-        <Button variant="outline" onClick={fetchData} disabled={isLoading}>
-          {isLoading ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <RefreshCw className="h-4 w-4" />
-          )}
-        </Button>
+        <div className="flex items-center gap-2">
+          <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as typeof statusFilter)}>
+            <SelectTrigger className="w-[150px]">
+              <SelectValue placeholder="สถานะ" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">ทั้งหมด</SelectItem>
+              <SelectItem value="pending">รออนุมัติ</SelectItem>
+              <SelectItem value="approved">อนุมัติแล้ว</SelectItem>
+              <SelectItem value="rejected">ปฏิเสธ</SelectItem>
+            </SelectContent>
+          </Select>
+          <Button variant="outline" onClick={fetchData} disabled={isLoading}>
+            {isLoading ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <RefreshCw className="h-4 w-4" />
+            )}
+          </Button>
+        </div>
       </div>
 
       {/* Summary Cards */}
@@ -268,21 +300,22 @@ export default function HRAdminPage() {
         <TabsContent value="leave" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>คำขอลารออนุมัติ</CardTitle>
+              <CardTitle>คำขอลา ({statusFilter === "all" ? "ทั้งหมด" : statusFilter === "pending" ? "รออนุมัติ" : statusFilter === "approved" ? "อนุมัติแล้ว" : "ปฏิเสธ"})</CardTitle>
+              <CardDescription>แสดง {filteredLeave.length} รายการ จากทั้งหมด {totalCounts.leave} รายการ</CardDescription>
             </CardHeader>
             <CardContent>
               {isLoading ? (
                 <div className="flex justify-center py-8">
                   <Loader2 className="h-6 w-6 animate-spin text-primary" />
                 </div>
-              ) : leaveRequests.length === 0 ? (
+              ) : filteredLeave.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">
                   <CheckCircle2 className="h-12 w-12 mx-auto mb-2 opacity-20" />
-                  <p>ไม่มีคำขอรออนุมัติ</p>
+                  <p>ไม่มีคำขอ{statusFilter === "pending" ? "รออนุมัติ" : ""}</p>
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {leaveRequests.map((request) => (
+                  {filteredLeave.map((request) => (
                     <div
                       key={request.id}
                       className="flex items-start justify-between p-4 rounded-lg border bg-card"
@@ -305,35 +338,48 @@ export default function HRAdminPage() {
                           ส่งเมื่อ {new Date(request.createdAt).toLocaleString("th-TH")}
                         </p>
                       </div>
-                      <div className="flex gap-2">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="text-red-500 hover:text-red-600 hover:bg-red-500/10"
-                          onClick={() => {
-                            setSelectedRequest({ id: request.id, type: "leave" });
-                            setShowRejectDialog(true);
-                          }}
-                          disabled={isProcessing}
+                      <div className="flex items-center gap-2">
+                        {/* Status Badge */}
+                        <Badge 
+                          variant={request.status === "approved" ? "default" : request.status === "rejected" ? "destructive" : "secondary"}
+                          className={request.status === "approved" ? "bg-green-600" : ""}
                         >
-                          <XCircle className="h-4 w-4 mr-1" />
-                          ไม่อนุมัติ
-                        </Button>
-                        <Button
-                          size="sm"
-                          className="bg-green-600 hover:bg-green-700"
-                          onClick={() => handleApprove(request.id, "leave")}
-                          disabled={isProcessing}
-                        >
-                          {isProcessing ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                          ) : (
-                            <>
-                              <CheckCircle2 className="h-4 w-4 mr-1" />
-                              อนุมัติ
-                            </>
-                          )}
-                        </Button>
+                          {request.status === "approved" ? "✓ อนุมัติ" : request.status === "rejected" ? "✗ ปฏิเสธ" : "⏳ รอ"}
+                        </Badge>
+                        
+                        {/* Action Buttons - only show for pending */}
+                        {request.status === "pending" && (
+                          <>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="text-red-500 hover:text-red-600 hover:bg-red-500/10"
+                              onClick={() => {
+                                setSelectedRequest({ id: request.id, type: "leave" });
+                                setShowRejectDialog(true);
+                              }}
+                              disabled={isProcessing}
+                            >
+                              <XCircle className="h-4 w-4 mr-1" />
+                              ไม่อนุมัติ
+                            </Button>
+                            <Button
+                              size="sm"
+                              className="bg-green-600 hover:bg-green-700"
+                              onClick={() => handleApprove(request.id, "leave")}
+                              disabled={isProcessing}
+                            >
+                              {isProcessing ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <>
+                                  <CheckCircle2 className="h-4 w-4 mr-1" />
+                                  อนุมัติ
+                                </>
+                              )}
+                            </Button>
+                          </>
+                        )}
                       </div>
                     </div>
                   ))}
@@ -347,21 +393,22 @@ export default function HRAdminPage() {
         <TabsContent value="ot" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>คำขอ OT รออนุมัติ</CardTitle>
+              <CardTitle>คำขอ OT ({statusFilter === "all" ? "ทั้งหมด" : statusFilter === "pending" ? "รออนุมัติ" : statusFilter === "approved" ? "อนุมัติแล้ว" : "ปฏิเสธ"})</CardTitle>
+              <CardDescription>แสดง {filteredOT.length} รายการ จากทั้งหมด {totalCounts.ot} รายการ</CardDescription>
             </CardHeader>
             <CardContent>
               {isLoading ? (
                 <div className="flex justify-center py-8">
                   <Loader2 className="h-6 w-6 animate-spin text-primary" />
                 </div>
-              ) : otRequests.length === 0 ? (
+              ) : filteredOT.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">
                   <CheckCircle2 className="h-12 w-12 mx-auto mb-2 opacity-20" />
-                  <p>ไม่มีคำขอรออนุมัติ</p>
+                  <p>ไม่มีคำขอ{statusFilter === "pending" ? "รออนุมัติ" : ""}</p>
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {otRequests.map((request) => (
+                  {filteredOT.map((request) => (
                     <div
                       key={request.id}
                       className="flex items-start justify-between p-4 rounded-lg border bg-card"
@@ -385,29 +432,39 @@ export default function HRAdminPage() {
                           💬 {request.reason}
                         </p>
                       </div>
-                      <div className="flex gap-2">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="text-red-500 hover:text-red-600 hover:bg-red-500/10"
-                          onClick={() => {
-                            setSelectedRequest({ id: request.id, type: "ot" });
-                            setShowRejectDialog(true);
-                          }}
-                          disabled={isProcessing}
+                      <div className="flex items-center gap-2">
+                        <Badge 
+                          variant={request.status === "approved" ? "default" : request.status === "rejected" ? "destructive" : "secondary"}
+                          className={request.status === "approved" ? "bg-green-600" : ""}
                         >
-                          <XCircle className="h-4 w-4 mr-1" />
-                          ไม่อนุมัติ
-                        </Button>
-                        <Button
-                          size="sm"
-                          className="bg-green-600 hover:bg-green-700"
-                          onClick={() => handleApprove(request.id, "ot")}
-                          disabled={isProcessing}
-                        >
-                          <CheckCircle2 className="h-4 w-4 mr-1" />
-                          อนุมัติ
-                        </Button>
+                          {request.status === "approved" ? "✓ อนุมัติ" : request.status === "rejected" ? "✗ ปฏิเสธ" : "⏳ รอ"}
+                        </Badge>
+                        {request.status === "pending" && (
+                          <>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="text-red-500 hover:text-red-600 hover:bg-red-500/10"
+                              onClick={() => {
+                                setSelectedRequest({ id: request.id, type: "ot" });
+                                setShowRejectDialog(true);
+                              }}
+                              disabled={isProcessing}
+                            >
+                              <XCircle className="h-4 w-4 mr-1" />
+                              ไม่อนุมัติ
+                            </Button>
+                            <Button
+                              size="sm"
+                              className="bg-green-600 hover:bg-green-700"
+                              onClick={() => handleApprove(request.id, "ot")}
+                              disabled={isProcessing}
+                            >
+                              <CheckCircle2 className="h-4 w-4 mr-1" />
+                              อนุมัติ
+                            </Button>
+                          </>
+                        )}
                       </div>
                     </div>
                   ))}
@@ -421,21 +478,22 @@ export default function HRAdminPage() {
         <TabsContent value="allowance" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>เบี้ยเลี้ยงรออนุมัติ</CardTitle>
+              <CardTitle>เบี้ยเลี้ยง ({statusFilter === "all" ? "ทั้งหมด" : statusFilter === "pending" ? "รออนุมัติ" : statusFilter === "approved" ? "อนุมัติแล้ว" : "ปฏิเสธ"})</CardTitle>
+              <CardDescription>แสดง {filteredAllowance.length} รายการ จากทั้งหมด {totalCounts.allowance} รายการ</CardDescription>
             </CardHeader>
             <CardContent>
               {isLoading ? (
                 <div className="flex justify-center py-8">
                   <Loader2 className="h-6 w-6 animate-spin text-primary" />
                 </div>
-              ) : allowanceRequests.length === 0 ? (
+              ) : filteredAllowance.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">
                   <CheckCircle2 className="h-12 w-12 mx-auto mb-2 opacity-20" />
-                  <p>ไม่มีคำขอรออนุมัติ</p>
+                  <p>ไม่มีคำขอ{statusFilter === "pending" ? "รออนุมัติ" : ""}</p>
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {allowanceRequests.map((request) => (
+                  {filteredAllowance.map((request) => (
                     <div
                       key={request.id}
                       className="flex items-start justify-between p-4 rounded-lg border bg-card"
@@ -459,29 +517,39 @@ export default function HRAdminPage() {
                           💬 {request.description}
                         </p>
                       </div>
-                      <div className="flex gap-2">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="text-red-500 hover:text-red-600 hover:bg-red-500/10"
-                          onClick={() => {
-                            setSelectedRequest({ id: request.id, type: "allowance" });
-                            setShowRejectDialog(true);
-                          }}
-                          disabled={isProcessing}
+                      <div className="flex items-center gap-2">
+                        <Badge 
+                          variant={request.status === "approved" ? "default" : request.status === "rejected" ? "destructive" : "secondary"}
+                          className={request.status === "approved" ? "bg-green-600" : ""}
                         >
-                          <XCircle className="h-4 w-4 mr-1" />
-                          ไม่อนุมัติ
-                        </Button>
-                        <Button
-                          size="sm"
-                          className="bg-green-600 hover:bg-green-700"
-                          onClick={() => handleApprove(request.id, "allowance")}
-                          disabled={isProcessing}
-                        >
-                          <CheckCircle2 className="h-4 w-4 mr-1" />
-                          อนุมัติ
-                        </Button>
+                          {request.status === "approved" ? "✓ อนุมัติ" : request.status === "rejected" ? "✗ ปฏิเสธ" : "⏳ รอ"}
+                        </Badge>
+                        {request.status === "pending" && (
+                          <>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="text-red-500 hover:text-red-600 hover:bg-red-500/10"
+                              onClick={() => {
+                                setSelectedRequest({ id: request.id, type: "allowance" });
+                                setShowRejectDialog(true);
+                              }}
+                              disabled={isProcessing}
+                            >
+                              <XCircle className="h-4 w-4 mr-1" />
+                              ไม่อนุมัติ
+                            </Button>
+                            <Button
+                              size="sm"
+                              className="bg-green-600 hover:bg-green-700"
+                              onClick={() => handleApprove(request.id, "allowance")}
+                              disabled={isProcessing}
+                            >
+                              <CheckCircle2 className="h-4 w-4 mr-1" />
+                              อนุมัติ
+                            </Button>
+                          </>
+                        )}
                       </div>
                     </div>
                   ))}
