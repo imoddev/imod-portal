@@ -408,7 +408,10 @@ export default function LongToShortPage() {
   const getStatusText = (status: string) => {
     switch (status) {
       case "extracting_audio": return "กำลังแยกเสียง...";
-      case "transcribing": return "กำลังถอดเสียง (whisper.cpp)...";
+      case "transcribing": return "กำลังถอดเสียง...";
+      case "arranging": return "กำลังเรียบเรียงเนื้อเรื่อง...";
+      case "guide": return "กำลังสร้าง Editing Guide...";
+      case "exporting": return "กำลังส่งออก...";
       case "analyzing": return "AI กำลังวิเคราะห์...";
       case "cutting": return "กำลังตัดคลิป...";
       case "done": return "เสร็จสิ้น!";
@@ -854,9 +857,12 @@ export default function LongToShortPage() {
                       <div className="grid grid-cols-4 gap-2 pt-2">
                         {[
                           { key: "extracting_audio", label: "แยกเสียง", tool: "FFmpeg", pct: 10, timeKey: "extractAudio" as const },
-                          { key: "transcribing", label: "ถอดเสียง", tool: "whisper.cpp", pct: 30, timeKey: "transcribe" as const },
-                          { key: "analyzing", label: "AI วิเคราะห์", tool: "Qwen 3 8B", pct: 60, timeKey: "analyze" as const },
-                          { key: "cutting", label: "ตัด + Reframe", tool: "YOLOv11 + MediaPipe", pct: 80, timeKey: "cutting" as const },
+                          { key: "transcribing", label: "ถอดเสียง", tool: "whisper.cpp", pct: 20, timeKey: "transcribe" as const },
+                          { key: "analyzing", label: "AI วิเคราะห์", tool: "Qwen 3 8B", pct: 40, timeKey: "analyze" as const },
+                          { key: "arranging", label: "เรียบเรียง", tool: "Qwen 3 8B", pct: 50, timeKey: "analyze" as const },
+                          { key: "guide", label: "Editing Guide", tool: "JSON", pct: 60, timeKey: "analyze" as const },
+                          { key: "cutting", label: "ตัดต่อ", tool: "FFmpeg", pct: 70, timeKey: "cutting" as const },
+                          { key: "exporting", label: "ส่งออก", tool: "FFmpeg", pct: 90, timeKey: "cutting" as const },
                         ].map((step) => {
                           const isActive = jobStatus.status === step.key;
                           const isDone = jobStatus.progress > step.pct;
