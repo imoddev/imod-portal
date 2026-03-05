@@ -128,7 +128,77 @@ export default function LongToShortPage() {
     }
   };
 
-  // Process file from NAS
+  // Import state
+  const [importProgress, setImportProgress] = useState(0);
+  const [isImporting, setIsImporting] = useState(false);
+  const [importJobId, setImportJobId] = useState<string | null>(null);
+
+  // Import file from NAS to Temp (copy only)
+  const importFromNAS = async (filename: string) => {
+    setIsImporting(true);
+    setImportProgress(0);
+    
+    try {
+      const res = await fetch(`${API_URL}/nas/import`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ filename }),
+        mode: "cors",
+      });
+      
+      if (res.ok) {
+        const data = await res.json();
+        setImportJobId(data.jobId);
+        
+        // Poll for progress
+        const pollInterval = setInterval(async () => {
+          try {
+            const statusRes = await fetch(`${API_URL}/status/${data.jobId}`, { mode: "cors" });
+            if (statusRes.ok) {
+              const status = await statusRes.json();
+              setImportProgress(status.progress || 0);
+              
+              if (status.status === 'imported') {
+                clearInterval(pollInterval);
+                setIsImporting(false);
+                setShowNAS(false);
+                setSelectedNASFile(null);
+                
+                // Add to file list
+                await fetchFiles();
+                
+                // Set as selected file
+                setSelectedFile({
+                  id: data.jobId,
+                  filename,
+                  originalName: filename,
+                  size: status.totalSize || 0,
+                  sizeFormatted: "",
+                  createdAt: new Date().toISOString(),
+                  status: "imported",
+                  progress: 100,
+                });
+                
+                alert(`✅ นำเข้าไฟล์เสร็จแล้ว!\n${filename}`);
+              } else if (status.status === 'error') {
+                clearInterval(pollInterval);
+                setIsImporting(false);
+                alert(`❌ เกิดข้อผิดพลาด: ${status.error}`);
+              }
+            }
+          } catch (e) {
+            console.error("Poll error:", e);
+          }
+        }, 1000);
+      }
+    } catch (error) {
+      console.error("Error importing NAS file:", error);
+      alert("ไม่สามารถนำเข้าไฟล์จาก NAS ได้");
+      setIsImporting(false);
+    }
+  };
+
+  // Process file from NAS (legacy - import + process)
   const processFromNAS = async (filename: string) => {
     setIsProcessing(true);
     try {
@@ -534,14 +604,26 @@ export default function LongToShortPage() {
                   
                   {/* Import Button */}
                   {selectedNASFile && (
-                    <Button 
-                      className="w-full mt-3" 
-                      onClick={() => processFromNAS(selectedNASFile)}
-                      disabled={isProcessing}
-                    >
-                      <Play className="h-4 w-4 mr-2" />
-                      นำเข้าและประมวลผล
-                    </Button>
+                    <div className="mt-3 space-y-2">
+                      {isImporting ? (
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between text-sm">
+                            <span>กำลังนำเข้า...</span>
+                            <span className="font-medium">{importProgress}%</span>
+                          </div>
+                          <Progress value={importProgress} className="h-2" />
+                        </div>
+                      ) : (
+                        <Button 
+                          className="w-full" 
+                          onClick={() => importFromNAS(selectedNASFile)}
+                          disabled={isProcessing || isImporting}
+                        >
+                          <Download className="h-4 w-4 mr-2" />
+                          นำเข้าไฟล์
+                        </Button>
+                      )}
+                    </div>
                   )}
                 </div>
               )}
