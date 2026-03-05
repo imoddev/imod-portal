@@ -1,22 +1,6 @@
 import NextAuth from "next-auth";
 import Google from "next-auth/providers/google";
-import { authConfig } from "./config";
-
-// Static check for allowed domains (no database call)
-function isEmailAllowedStatic(email: string): boolean {
-  const lowerEmail = email.toLowerCase();
-  const domain = lowerEmail.split("@")[1];
-
-  if (authConfig.allowPublicSignup) {
-    return true;
-  }
-
-  if (authConfig.allowedDomains.includes(domain)) {
-    return true;
-  }
-
-  return false;
-}
+import { isEmailAllowedStatic } from "./config";
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   providers: [
