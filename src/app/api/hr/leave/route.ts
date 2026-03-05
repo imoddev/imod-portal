@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { auth } from "@/lib/auth/config";
+import { auth } from "@/lib/auth";
 
 // GET - List leave requests
 export async function GET(request: NextRequest) {
