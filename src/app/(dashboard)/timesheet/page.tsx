@@ -599,7 +599,14 @@ export default function TimesheetPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {records.map((record) => (
+                    {records.map((record) => {
+                      // Check late (after 09:00) and early leave (before 18:00)
+                      const checkInTime = record.checkIn ? new Date(record.checkIn) : null;
+                      const checkOutTime = record.checkOut ? new Date(record.checkOut) : null;
+                      const isLate = checkInTime && (checkInTime.getHours() > 9 || (checkInTime.getHours() === 9 && checkInTime.getMinutes() > 0));
+                      const isEarlyLeave = checkOutTime && checkOutTime.getHours() < 18;
+                      
+                      return (
                       <tr key={record.id} className="border-b hover:bg-muted/50">
                         <td className="py-2 px-2">
                           {new Date(record.date).toLocaleDateString("th-TH", {
@@ -608,10 +615,11 @@ export default function TimesheetPage() {
                             month: "short",
                           })}
                         </td>
-                        <td className="text-center py-2 px-2 text-green-500">
+                        <td className={`text-center py-2 px-2 ${isLate ? 'text-red-500 font-medium' : 'text-green-500'}`}>
                           {formatTime(record.checkIn)}
+                          {isLate && <span className="text-xs ml-1">สาย</span>}
                         </td>
-                        <td className="text-center py-2 px-2 text-red-500">
+                        <td className={`text-center py-2 px-2 ${isEarlyLeave ? 'text-orange-500' : 'text-red-500'}`}>
                           {formatTime(record.checkOut)}
                         </td>
                         <td className="text-center py-2 px-2">
@@ -629,10 +637,21 @@ export default function TimesheetPage() {
                           </Badge>
                         </td>
                         <td className="text-center py-2 px-2">
-                          {getLocationStatusBadge(record)}
+                          {record.checkInLat && record.checkInLng ? (
+                            <a 
+                              href={`https://www.google.com/maps?q=${record.checkInLat},${record.checkInLng}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-blue-500 hover:underline text-xs"
+                            >
+                              📍 ดูแผนที่
+                            </a>
+                          ) : (
+                            <span className="text-muted-foreground text-xs">N/A</span>
+                          )}
                         </td>
                       </tr>
-                    ))}
+                    );})}
                   </tbody>
                 </table>
               </div>
