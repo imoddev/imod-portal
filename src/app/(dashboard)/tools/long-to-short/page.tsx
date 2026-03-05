@@ -158,7 +158,7 @@ export default function LongToShortPage() {
       }
     } catch (error) {
       console.error("Upload error:", error);
-      alert("ไม่สามารถเชื่อมต่อ API ได้");
+      alert("ไม่สามารถเชื่อมต่อ API ได้\n\nหมายเหตุ: ไฟล์ใหญ่กว่า 100MB อาจไม่สามารถอัปโหลดผ่านมือถือได้\nกรุณาใช้คอมพิวเตอร์ หรือ copy ไฟล์ไปที่ Mac Studio โดยตรง");
     } finally {
       setIsUploading(false);
       // Reset file input
@@ -647,12 +647,21 @@ export default function LongToShortPage() {
                       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                         {jobStatus.clips.map((clip) => (
                           <Card key={clip.id} className="overflow-hidden">
-                            <div className="aspect-[9/16] bg-muted flex items-center justify-center">
-                              <Video className="h-8 w-8 text-muted-foreground" />
+                            <div className="aspect-[9/16] bg-black relative">
+                              <video
+                                src={`${API_URL}/preview/${selectedFile.id}/${clip.filename}`}
+                                className="w-full h-full object-contain"
+                                controls
+                                playsInline
+                                preload="metadata"
+                                poster=""
+                              />
                             </div>
                             <CardContent className="p-3 space-y-2">
                               <div className="flex items-center justify-between">
-                                <Badge variant="secondary">Clip {clip.id}</Badge>
+                                <Badge variant="secondary">
+                                  {clip.filename === 'highlight.mp4' ? 'Highlight' : `Clip ${clip.id}`}
+                                </Badge>
                                 <span className="text-xs text-muted-foreground">
                                   {formatTime(clip.duration)}
                                 </span>
