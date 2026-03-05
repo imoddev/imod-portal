@@ -87,12 +87,21 @@ export default function LongToShortPage() {
   const [mode, setMode] = useState<"shorts" | "highlight">("shorts");
   const [highlightDuration, setHighlightDuration] = useState(180); // 3 minutes default
   const [resolution, setResolution] = useState<"FHD" | "2K" | "4K">("2K");
+  const [orientation, setOrientation] = useState<"vertical" | "landscape">("vertical");
   
-  const RESOLUTIONS = {
+  const RESOLUTIONS_VERTICAL = {
     'FHD': { label: 'Full HD (1080x1920)', width: 1080, height: 1920 },
     '2K': { label: '2K (1440x2560)', width: 1440, height: 2560 },
     '4K': { label: '4K (2160x3840)', width: 2160, height: 3840 },
   };
+  
+  const RESOLUTIONS_LANDSCAPE = {
+    'FHD': { label: 'Full HD (1920x1080)', width: 1920, height: 1080 },
+    '2K': { label: '2K (2560x1440)', width: 2560, height: 1440 },
+    '4K': { label: '4K (3840x2160)', width: 3840, height: 2160 },
+  };
+  
+  const RESOLUTIONS = orientation === 'landscape' ? RESOLUTIONS_LANDSCAPE : RESOLUTIONS_VERTICAL;
   
   // NAS state
   const [nasFiles, setNasFiles] = useState<NASFile[]>([]);
@@ -101,6 +110,10 @@ export default function LongToShortPage() {
   const [nasSearch, setNasSearch] = useState("");
   const [nasTotal, setNasTotal] = useState(0);
   const [selectedNASFile, setSelectedNASFile] = useState<string | null>(null);
+  
+  // Output files state
+  const [outputFolders, setOutputFolders] = useState<{name: string, files: string[], date: string}[]>([]);
+  const [loadingOutputs, setLoadingOutputs] = useState(false);
 
   // Fetch NAS files
   const fetchNASFiles = async (search?: string) => {
@@ -132,6 +145,22 @@ export default function LongToShortPage() {
       console.error("Error refreshing NAS:", error);
     } finally {
       setLoadingNAS(false);
+    }
+  };
+  
+  // Fetch output folders
+  const fetchOutputs = async () => {
+    setLoadingOutputs(true);
+    try {
+      const res = await fetch(`${API_URL}/outputs`, { mode: "cors" });
+      if (res.ok) {
+        const data = await res.json();
+        setOutputFolders(data.folders || []);
+      }
+    } catch (error) {
+      console.error("Error fetching outputs:", error);
+    } finally {
+      setLoadingOutputs(false);
     }
   };
 
@@ -217,6 +246,7 @@ export default function LongToShortPage() {
           mode,
           highlightDuration: mode === "highlight" ? highlightDuration : undefined,
           resolution,
+          orientation,
         }),
         mode: "cors",
       });
@@ -253,6 +283,7 @@ export default function LongToShortPage() {
       if (res.ok) {
         setApiStatus("online");
         fetchFiles();
+        fetchOutputs();
       } else {
         setApiStatus("offline");
       }
@@ -807,6 +838,35 @@ export default function LongToShortPage() {
                         </div>
                       </div>
                       {/* Resolution Selection */}
+                      {/* Orientation Selection */}
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">รูปแบบวิดีโอ</label>
+                        <div className="flex gap-2">
+                          <Button
+                            variant={orientation === "vertical" ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => setOrientation("vertical")}
+                            disabled={isProcessing}
+                            className="flex-1"
+                          >
+                            📱 Vertical (9:16)
+                          </Button>
+                          <Button
+                            variant={orientation === "landscape" ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => setOrientation("landscape")}
+                            disabled={isProcessing}
+                            className="flex-1"
+                          >
+                            🖥️ Landscape (16:9)
+                          </Button>
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          {orientation === "vertical" ? "สำหรับ TikTok, Reels, Shorts (ตัด+Reframe)" : "สำหรับ YouTube, Facebook (ตัดอย่างเดียว)"}
+                        </p>
+                      </div>
+
+                      {/* Resolution Selection */}
                       <div className="space-y-2">
                         <label className="text-sm font-medium">ความละเอียด Export</label>
                         <div className="flex gap-2">
@@ -993,6 +1053,46 @@ export default function LongToShortPage() {
           </Card>
         </div>
       )}
+
+      {/* Output Files */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle className="text-base">🎬 Final Output</CardTitle>
+          <Button variant="ghost" size="sm" onClick={fetchOutputs} disabled={loadingOutputs}>
+            {loadingOutputs ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+          </Button>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          {outputFolders.length === 0 ? (
+            <p className="text-sm text-muted-foreground">ยังไม่มีไฟล์ที่ตัดเสร็จ</p>
+          ) : (
+            <div className="space-y-2 max-h-60 overflow-y-auto">
+              {outputFolders.map((folder) => (
+                <div key={folder.name} className="p-2 rounded-lg bg-muted/50 border space-y-1">
+                  <p className="text-sm font-medium truncate">{folder.name}</p>
+                  <div className="flex flex-wrap gap-1">
+                    {folder.files.map((file) => (
+                      <a
+                        key={file}
+                        href={`${API_URL}/download/${encodeURIComponent(folder.name)}/${encodeURIComponent(file)}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-primary/10 text-primary text-xs hover:bg-primary/20"
+                      >
+                        <Download className="h-3 w-3" />
+                        {file.length > 30 ? file.slice(0, 30) + '...' : file}
+                      </a>
+                    ))}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {new Date(folder.date).toLocaleString('th-TH')}
+                  </p>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Info Panel */}
       <Card>
