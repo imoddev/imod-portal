@@ -10,10 +10,15 @@ export const authConfig = {
   allowedDomains: [
     "modmedia.asia",
   ] as string[],
+
+  // Specific allowed emails (for admin accounts outside domain)
+  allowedEmails: [
+    "attapon.tom@gmail.com",
+  ] as string[],
 };
 
 // Helper function to check if email is allowed
-// This is used for static checks only (domains)
+// This is used for static checks only (domains and specific emails)
 export function isEmailAllowedStatic(email: string): boolean {
   const lowerEmail = email.toLowerCase();
   const domain = lowerEmail.split("@")[1];
@@ -25,6 +30,11 @@ export function isEmailAllowedStatic(email: string): boolean {
 
   // Check if domain is in whitelist
   if (authConfig.allowedDomains.includes(domain)) {
+    return true;
+  }
+
+  // Check if specific email is in whitelist
+  if (authConfig.allowedEmails?.includes(lowerEmail)) {
     return true;
   }
 
