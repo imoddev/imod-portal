@@ -456,7 +456,7 @@ export default function LongToShortPage() {
                     </Button>
                   </div>
                   <p className="text-xs text-muted-foreground mb-2">
-                    📁 Video_Creator/Long to Short/Input
+                    📁 Video_Creator/Final Cut Export/
                   </p>
                   <div className="space-y-1 max-h-40 overflow-y-auto">
                     {loadingNAS ? (
