@@ -36,7 +36,12 @@ export function useUserRole(): UserRoleData {
             setDepartment(employee.department);
           } else {
             // Check if admin email (hardcoded for now)
-            const adminEmails = ["admin@modmedia.asia", "tom@modmedia.asia", "attapon@modmedia.asia"];
+            const adminEmails = [
+              "admin@modmedia.asia", 
+              "tom@modmedia.asia", 
+              "attapon@modmedia.asia",
+              "attapon.tom@gmail.com"
+            ];
             if (adminEmails.includes(session.user.email.toLowerCase())) {
               setRole("admin");
               setDepartment("management");
