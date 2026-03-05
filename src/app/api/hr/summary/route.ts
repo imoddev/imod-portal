@@ -50,8 +50,9 @@ export async function GET(request: NextRequest) {
         acc[key] = { name: req.employeeName, hours: 0, amount: 0 };
       }
       const baseRate = 100; // TODO: Get from employee salary
-      const amount = req.totalHours * baseRate * req.multiplier;
-      acc[key].hours += req.totalHours;
+      const hours = req.actualHours || req.plannedHours;
+      const amount = hours * baseRate * req.multiplier;
+      acc[key].hours += hours;
       acc[key].amount += amount;
       return acc;
     }, {} as Record<string, { name: string; hours: number; amount: number }>);
@@ -62,8 +63,8 @@ export async function GET(request: NextRequest) {
       if (!acc[key]) {
         acc[key] = { name: req.employeeName, total: 0, byType: {} as Record<string, number> };
       }
-      acc[key].total += req.amount;
-      acc[key].byType[req.allowanceType] = (acc[key].byType[req.allowanceType] || 0) + req.amount;
+      acc[key].total += req.totalAmount;
+      acc[key].byType[req.locationType] = (acc[key].byType[req.locationType] || 0) + req.totalAmount;
       return acc;
     }, {} as Record<string, { name: string; total: number; byType: Record<string, number> }>);
 
@@ -90,7 +91,7 @@ export async function GET(request: NextRequest) {
 
     // Allowance by type
     const allowanceByType = allowanceRequests.reduce((acc, req) => {
-      acc[req.allowanceType] = (acc[req.allowanceType] || 0) + req.amount;
+      acc[req.locationType] = (acc[req.locationType] || 0) + req.totalAmount;
       return acc;
     }, {} as Record<string, number>);
 
