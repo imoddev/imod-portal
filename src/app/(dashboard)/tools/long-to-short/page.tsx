@@ -86,6 +86,13 @@ export default function LongToShortPage() {
   const [apiStatus, setApiStatus] = useState<"checking" | "online" | "offline">("checking");
   const [mode, setMode] = useState<"shorts" | "highlight">("shorts");
   const [highlightDuration, setHighlightDuration] = useState(180); // 3 minutes default
+  const [resolution, setResolution] = useState<"FHD" | "2K" | "4K">("2K");
+  
+  const RESOLUTIONS = {
+    'FHD': { label: 'Full HD (1080x1920)', width: 1080, height: 1920 },
+    '2K': { label: '2K (1440x2560)', width: 1440, height: 2560 },
+    '4K': { label: '4K (2160x3840)', width: 2160, height: 3840 },
+  };
   
   // NAS state
   const [nasFiles, setNasFiles] = useState<NASFile[]>([]);
@@ -209,6 +216,7 @@ export default function LongToShortPage() {
           filename,
           mode,
           highlightDuration: mode === "highlight" ? highlightDuration : undefined,
+          resolution,
         }),
         mode: "cors",
       });
@@ -798,6 +806,28 @@ export default function LongToShortPage() {
                           <span>5 นาที</span>
                         </div>
                       </div>
+                      {/* Resolution Selection */}
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">ความละเอียด Export</label>
+                        <div className="flex gap-2">
+                          {(Object.keys(RESOLUTIONS) as Array<"FHD" | "2K" | "4K">).map((res) => (
+                            <Button
+                              key={res}
+                              variant={resolution === res ? "default" : "outline"}
+                              size="sm"
+                              onClick={() => setResolution(res)}
+                              disabled={isProcessing}
+                              className="flex-1"
+                            >
+                              {res}
+                            </Button>
+                          ))}
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          {RESOLUTIONS[resolution].label}
+                        </p>
+                      </div>
+
                       <div className="p-3 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800">
                         <p className="text-sm text-amber-800 dark:text-amber-200">
                           🎬 <strong>Trailer Mode:</strong> AI จะวิเคราะห์โครงเรื่องจาก transcript 
