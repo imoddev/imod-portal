@@ -40,6 +40,13 @@ interface QueueFile {
   progress: number;
 }
 
+interface NASFile {
+  name: string;
+  size: number;
+  sizeFormatted: string;
+  modified: string;
+}
+
 interface Clip {
   id: number;
   start: number;
@@ -79,6 +86,63 @@ export default function LongToShortPage() {
   const [apiStatus, setApiStatus] = useState<"checking" | "online" | "offline">("checking");
   const [mode, setMode] = useState<"shorts" | "highlight">("shorts");
   const [highlightDuration, setHighlightDuration] = useState(180); // 3 minutes default
+  
+  // NAS state
+  const [nasFiles, setNasFiles] = useState<NASFile[]>([]);
+  const [showNAS, setShowNAS] = useState(false);
+  const [loadingNAS, setLoadingNAS] = useState(false);
+
+  // Fetch NAS files
+  const fetchNASFiles = async () => {
+    setLoadingNAS(true);
+    try {
+      const res = await fetch(`${API_URL}/nas/files`, { mode: "cors" });
+      if (res.ok) {
+        const data = await res.json();
+        setNasFiles(data.files || []);
+      }
+    } catch (error) {
+      console.error("Error fetching NAS files:", error);
+    } finally {
+      setLoadingNAS(false);
+    }
+  };
+
+  // Process file from NAS
+  const processFromNAS = async (filename: string) => {
+    setIsProcessing(true);
+    try {
+      const res = await fetch(`${API_URL}/nas/process`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          filename,
+          mode,
+          highlightDuration: mode === "highlight" ? highlightDuration : undefined,
+        }),
+        mode: "cors",
+      });
+      
+      if (res.ok) {
+        const data = await res.json();
+        // Set selected file for tracking
+        setSelectedFile({
+          id: data.jobId,
+          filename,
+          originalName: filename,
+          size: 0,
+          sizeFormatted: "",
+          createdAt: new Date().toISOString(),
+          status: "processing",
+          progress: 0,
+        });
+        setShowNAS(false);
+      }
+    } catch (error) {
+      console.error("Error processing NAS file:", error);
+      alert("ไม่สามารถประมวลผลไฟล์จาก NAS ได้");
+    }
+  };
 
   // Check API status
   useEffect(() => {
@@ -333,32 +397,96 @@ export default function LongToShortPage() {
             </CardHeader>
             <CardContent className="space-y-3">
               {/* Upload Button */}
-              <div className="border-2 border-dashed rounded-lg p-4 text-center hover:bg-muted/50 transition-colors">
-                <input
-                  type="file"
-                  accept="video/*"
-                  onChange={handleUpload}
-                  className="hidden"
-                  id="video-upload"
-                  disabled={isUploading}
-                />
-                <label htmlFor="video-upload" className="cursor-pointer">
-                  {isUploading ? (
-                    <div className="space-y-2">
-                      <Loader2 className="h-8 w-8 mx-auto animate-spin text-primary" />
-                      <p className="text-sm">กำลังอัปโหลด... {uploadProgress}%</p>
-                      <Progress value={uploadProgress} className="h-2" />
-                    </div>
-                  ) : (
-                    <div className="space-y-2">
-                      <Upload className="h-8 w-8 mx-auto text-muted-foreground" />
-                      <p className="text-sm text-muted-foreground">
-                        อัปโหลดไฟล์ (สูงสุด 10GB)
-                      </p>
-                    </div>
-                  )}
-                </label>
+              <div className="grid grid-cols-2 gap-2">
+                {/* Upload from device */}
+                <div className="border-2 border-dashed rounded-lg p-4 text-center hover:bg-muted/50 transition-colors">
+                  <input
+                    type="file"
+                    accept="video/*"
+                    onChange={handleUpload}
+                    className="hidden"
+                    id="video-upload"
+                    disabled={isUploading}
+                  />
+                  <label htmlFor="video-upload" className="cursor-pointer">
+                    {isUploading ? (
+                      <div className="space-y-2">
+                        <Loader2 className="h-8 w-8 mx-auto animate-spin text-primary" />
+                        <p className="text-sm">กำลังอัปโหลด... {uploadProgress}%</p>
+                        <Progress value={uploadProgress} className="h-2" />
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        <Upload className="h-8 w-8 mx-auto text-muted-foreground" />
+                        <p className="text-sm text-muted-foreground">
+                          อัปโหลดไฟล์
+                        </p>
+                      </div>
+                    )}
+                  </label>
+                </div>
+
+                {/* Select from NAS */}
+                <div 
+                  className="border-2 border-dashed rounded-lg p-4 text-center hover:bg-muted/50 transition-colors cursor-pointer"
+                  onClick={() => {
+                    setShowNAS(!showNAS);
+                    if (!showNAS) fetchNASFiles();
+                  }}
+                >
+                  <div className="space-y-2">
+                    <Server className="h-8 w-8 mx-auto text-muted-foreground" />
+                    <p className="text-sm text-muted-foreground">
+                      เลือกจาก NAS
+                    </p>
+                  </div>
+                </div>
               </div>
+
+              {/* NAS File Picker */}
+              {showNAS && (
+                <div className="border rounded-lg p-3 bg-muted/30">
+                  <div className="flex items-center justify-between mb-2">
+                    <h4 className="text-sm font-medium flex items-center gap-2">
+                      <HardDrive className="h-4 w-4" />
+                      Synology NAS
+                    </h4>
+                    <Button size="sm" variant="ghost" onClick={fetchNASFiles} disabled={loadingNAS}>
+                      <RefreshCw className={`h-3 w-3 ${loadingNAS ? 'animate-spin' : ''}`} />
+                    </Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground mb-2">
+                    📁 Video_Creator/Long to Short/Input
+                  </p>
+                  <div className="space-y-1 max-h-40 overflow-y-auto">
+                    {loadingNAS ? (
+                      <p className="text-sm text-center py-2">
+                        <Loader2 className="h-4 w-4 animate-spin inline mr-2" />
+                        กำลังโหลด...
+                      </p>
+                    ) : nasFiles.length === 0 ? (
+                      <p className="text-sm text-muted-foreground text-center py-2">
+                        ไม่มีไฟล์ใน Input folder
+                      </p>
+                    ) : (
+                      nasFiles.map((file) => (
+                        <div
+                          key={file.name}
+                          onClick={() => processFromNAS(file.name)}
+                          className="p-2 rounded border hover:bg-primary/10 cursor-pointer flex items-center gap-2"
+                        >
+                          <FileVideo className="h-4 w-4 text-muted-foreground" />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm truncate">{file.name}</p>
+                            <p className="text-xs text-muted-foreground">{file.sizeFormatted}</p>
+                          </div>
+                          <Play className="h-4 w-4 text-primary" />
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              )}
 
               {/* File List */}
               <div className="space-y-2 max-h-80 overflow-y-auto">
