@@ -158,7 +158,7 @@ export default function LongToShortPage() {
               const status = await statusRes.json();
               setImportProgress(status.progress || 0);
               
-              if (status.status === 'imported') {
+              if (status.status === 'ready' || status.status === 'imported') {
                 clearInterval(pollInterval);
                 setIsImporting(false);
                 setShowNAS(false);
