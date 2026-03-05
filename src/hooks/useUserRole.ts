@@ -12,6 +12,14 @@ interface UserRoleData {
   hasRole: (minRole: Role) => boolean;
 }
 
+// Admin emails - always have admin role
+const ADMIN_EMAILS = [
+  "admin@modmedia.asia", 
+  "tom@modmedia.asia", 
+  "attapon@modmedia.asia",
+  "attapon.tom@gmail.com"
+];
+
 export function useUserRole(): UserRoleData {
   const { data: session } = useSession();
   const [role, setRole] = useState<Role>("member");
@@ -25,9 +33,19 @@ export function useUserRole(): UserRoleData {
         return;
       }
 
+      const email = session.user.email.toLowerCase();
+
+      // Check admin emails first (highest priority)
+      if (ADMIN_EMAILS.includes(email)) {
+        setRole("admin");
+        setDepartment("management");
+        setIsLoading(false);
+        return;
+      }
+
       try {
         // Fetch user's role from Employee table
-        const res = await fetch(`/api/team?email=${encodeURIComponent(session.user.email)}`);
+        const res = await fetch(`/api/team?email=${encodeURIComponent(email)}`);
         if (res.ok) {
           const data = await res.json();
           if (data.employees && data.employees.length > 0) {
@@ -35,17 +53,7 @@ export function useUserRole(): UserRoleData {
             setRole(employee.role || "member");
             setDepartment(employee.department);
           } else {
-            // Check if admin email (hardcoded for now)
-            const adminEmails = [
-              "admin@modmedia.asia", 
-              "tom@modmedia.asia", 
-              "attapon@modmedia.asia",
-              "attapon.tom@gmail.com"
-            ];
-            if (adminEmails.includes(session.user.email.toLowerCase())) {
-              setRole("admin");
-              setDepartment("management");
-            }
+            setRole("member");
           }
         }
       } catch (error) {
