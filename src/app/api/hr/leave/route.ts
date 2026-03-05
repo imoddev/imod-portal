@@ -1,26 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth/config";
 
-// GET /api/hr/leave - List leave requests
+// GET - List leave requests
 export async function GET(request: NextRequest) {
-  const { searchParams } = new URL(request.url);
-  const employeeId = searchParams.get("employeeId");
-  const status = searchParams.get("status");
-  const year = searchParams.get("year") || new Date().getFullYear().toString();
-
   try {
+    const { searchParams } = new URL(request.url);
+    const employeeId = searchParams.get("employeeId");
+    const status = searchParams.get("status");
+    const pending = searchParams.get("pending") === "true";
+
     const where: any = {};
-    
     if (employeeId) where.employeeId = employeeId;
-    if (status && status !== "all") where.status = status;
-    
-    // Filter by year
-    const startOfYear = new Date(`${year}-01-01`);
-    const endOfYear = new Date(`${year}-12-31`);
-    where.startDate = {
-      gte: startOfYear,
-      lte: endOfYear,
-    };
+    if (status) where.status = status;
+    if (pending) where.status = "pending";
 
     const requests = await prisma.leaveRequest.findMany({
       where,
@@ -28,11 +22,7 @@ export async function GET(request: NextRequest) {
       take: 100,
     });
 
-    return NextResponse.json({ 
-      success: true, 
-      requests,
-      count: requests.length,
-    });
+    return NextResponse.json({ success: true, requests });
   } catch (error) {
     console.error("Error fetching leave requests:", error);
     return NextResponse.json(
@@ -42,10 +32,12 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST /api/hr/leave - Create leave request
+// POST - Create leave request
 export async function POST(request: NextRequest) {
   try {
+    const session = await getServerSession(authOptions);
     const body = await request.json();
+    
     const {
       employeeId,
       employeeName,
@@ -55,8 +47,10 @@ export async function POST(request: NextRequest) {
       endDate,
       reason,
       attachment,
+      isEmergency = false,
     } = body;
 
+    // Validate required fields
     if (!employeeId || !employeeName || !leaveType || !startDate || !endDate || !reason) {
       return NextResponse.json(
         { success: false, error: "Missing required fields" },
@@ -69,66 +63,187 @@ export async function POST(request: NextRequest) {
     const end = new Date(endDate);
     const diffTime = Math.abs(end.getTime() - start.getTime());
     const totalDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+    const consecutiveDays = totalDays;
 
+    // Check if document required (sick leave > 3 days)
+    const requiresDocument = leaveType === "sick" && consecutiveDays > 3;
+
+    // Validate sick leave > 3 days requires attachment
+    if (requiresDocument && !attachment) {
+      return NextResponse.json(
+        { success: false, error: "ลาป่วยเกิน 3 วัน ต้องแนบใบรับรองแพทย์" },
+        { status: 400 }
+      );
+    }
+
+    // Check quota
+    const year = new Date().getFullYear();
+    let balance = await prisma.leaveBalance.findUnique({
+      where: { employeeId_year: { employeeId, year } },
+    });
+
+    // Create balance if not exists
+    if (!balance) {
+      balance = await prisma.leaveBalance.create({
+        data: { employeeId, employeeName, year },
+      });
+    }
+
+    // Validate quota based on leave type
+    const quotaMap: Record<string, { quota: string; used: string }> = {
+      sick: { quota: "sickLeaveQuota", used: "sickLeaveUsed" },
+      personal: { quota: "personalLeaveQuota", used: "personalLeaveUsed" },
+      annual: { quota: "annualLeaveQuota", used: "annualLeaveUsed" },
+      wedding: { quota: "weddingLeaveQuota", used: "weddingLeaveUsed" },
+      ordination: { quota: "ordinationLeaveQuota", used: "ordinationLeaveUsed" },
+      childSick: { quota: "childSickLeaveQuota", used: "childSickLeaveUsed" },
+    };
+
+    const mapping = quotaMap[leaveType];
+    if (mapping) {
+      const quota = (balance as any)[mapping.quota];
+      const used = (balance as any)[mapping.used];
+      const remaining = quota - used;
+
+      if (totalDays > remaining) {
+        return NextResponse.json(
+          { success: false, error: `โควตาไม่เพียงพอ (เหลือ ${remaining} วัน)` },
+          { status: 400 }
+        );
+      }
+
+      // Check one-time leaves
+      if (leaveType === "wedding" && balance.hasUsedWeddingLeave) {
+        return NextResponse.json(
+          { success: false, error: "ใช้สิทธิ์ลาแต่งงานไปแล้ว (1 ครั้งตลอดอายุงาน)" },
+          { status: 400 }
+        );
+      }
+      if (leaveType === "ordination" && balance.hasUsedOrdinationLeave) {
+        return NextResponse.json(
+          { success: false, error: "ใช้สิทธิ์ลาบวชไปแล้ว (1 ครั้งตลอดอายุงาน)" },
+          { status: 400 }
+        );
+      }
+    }
+
+    // TODO: Check annual leave requires 1 year employment
+
+    // Create leave request
     const leaveRequest = await prisma.leaveRequest.create({
       data: {
         employeeId,
         employeeName,
         department,
         leaveType,
-        startDate: start,
-        endDate: end,
+        startDate: new Date(startDate),
+        endDate: new Date(endDate),
         totalDays,
         reason,
         attachment,
+        isEmergency,
+        consecutiveDays,
+        requiresDocument,
         status: "pending",
       },
     });
 
-    // Send Discord notification to #townhall and #revenue-team
-    try {
-      const leaveTypeNames: Record<string, string> = {
-        sick: "ลาป่วย",
-        personal: "ลากิจ",
-        annual: "ลาพักร้อน",
-        maternity: "ลาคลอด",
-        ordination: "ลาบวช",
-        other: "อื่นๆ",
-      };
-      
-      const message = `📋 **คำขอลาใหม่** รออนุมัติ\n\n` +
-        `👤 **${employeeName}** (${department || "ไม่ระบุแผนก"})\n` +
-        `📝 ประเภท: ${leaveTypeNames[leaveType] || leaveType}\n` +
-        `📅 ${start.toLocaleDateString("th-TH")} - ${end.toLocaleDateString("th-TH")} (${totalDays} วัน)\n` +
-        `💬 เหตุผล: ${reason}\n\n` +
-        `🔗 อนุมัติได้ที่: https://basement.iphonemod.net/hr/admin`;
-
-      // Notify via OpenClaw Gateway
-      const gatewayUrl = process.env.OPENCLAW_GATEWAY_URL || "http://localhost:4141";
-      const channels = ["1467392002457866363"]; // #revenue-team
-      
-      for (const channelId of channels) {
-        await fetch(`${gatewayUrl}/api/message`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            action: "send",
-            channel: "discord",
-            target: channelId,
-            message,
-          }),
-        }).catch(() => {});
-      }
-    } catch (e) {
-      console.error("Discord notification failed:", e);
-    }
-
     return NextResponse.json({
       success: true,
       request: leaveRequest,
+      message: "สร้างคำขอลาสำเร็จ รอการอนุมัติ",
     });
   } catch (error) {
     console.error("Error creating leave request:", error);
+    return NextResponse.json(
+      { success: false, error: String(error) },
+      { status: 500 }
+    );
+  }
+}
+
+// PATCH - Approve/Reject leave request
+export async function PATCH(request: NextRequest) {
+  try {
+    const body = await request.json();
+    const { id, action, approvedBy, approverName, rejectReason } = body;
+
+    if (!id || !action) {
+      return NextResponse.json(
+        { success: false, error: "Missing id or action" },
+        { status: 400 }
+      );
+    }
+
+    const leaveRequest = await prisma.leaveRequest.findUnique({
+      where: { id },
+    });
+
+    if (!leaveRequest) {
+      return NextResponse.json(
+        { success: false, error: "Leave request not found" },
+        { status: 404 }
+      );
+    }
+
+    if (action === "approve") {
+      // Update request status
+      await prisma.leaveRequest.update({
+        where: { id },
+        data: {
+          status: "approved",
+          approvedBy,
+          approverName,
+          approvedAt: new Date(),
+        },
+      });
+
+      // Update balance
+      const year = new Date().getFullYear();
+      const usedField = `${leaveRequest.leaveType}LeaveUsed`;
+      
+      await prisma.leaveBalance.update({
+        where: {
+          employeeId_year: {
+            employeeId: leaveRequest.employeeId,
+            year,
+          },
+        },
+        data: {
+          [usedField]: { increment: leaveRequest.totalDays },
+          // Mark one-time leaves
+          ...(leaveRequest.leaveType === "wedding" && { hasUsedWeddingLeave: true }),
+          ...(leaveRequest.leaveType === "ordination" && { hasUsedOrdinationLeave: true }),
+        },
+      });
+
+      return NextResponse.json({
+        success: true,
+        message: "อนุมัติคำขอลาสำเร็จ",
+      });
+    } else if (action === "reject") {
+      await prisma.leaveRequest.update({
+        where: { id },
+        data: {
+          status: "rejected",
+          approvedBy,
+          approverName,
+          rejectReason,
+        },
+      });
+
+      return NextResponse.json({
+        success: true,
+        message: "ปฏิเสธคำขอลาสำเร็จ",
+      });
+    }
+
+    return NextResponse.json(
+      { success: false, error: "Invalid action" },
+      { status: 400 }
+    );
+  } catch (error) {
+    console.error("Error updating leave request:", error);
     return NextResponse.json(
       { success: false, error: String(error) },
       { status: 500 }

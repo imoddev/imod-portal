@@ -407,7 +407,7 @@ model ContentPlan {
   @@index([assigneeId])
 }
 
-// ========== HR System ==========
+// ========== HR System (Developed by พี่อาย) ==========
 
 // Leave Balance - วันลาคงเหลือของแต่ละคน
 model LeaveBalance {
@@ -417,15 +417,25 @@ model LeaveBalance {
   employeeName String
   year         Int      @default(2026)
   
-  // วันลาที่ได้รับ (quota)
-  sickLeaveQuota      Int @default(30)   // ลาป่วย 30 วัน/ปี
-  personalLeaveQuota  Int @default(6)    // ลากิจ 6 วัน/ปี
-  annualLeaveQuota    Int @default(6)    // ลาพักร้อน 6 วัน/ปี (เพิ่มตามอายุงาน)
+  // วันลาที่ได้รับ (quota) - ตาม requirement พี่อาย
+  sickLeaveQuota       Int @default(30)   // ลาป่วย 30 วัน/ปี
+  personalLeaveQuota   Int @default(5)    // ลากิจ 5 วัน/ปี
+  annualLeaveQuota     Int @default(6)    // ลาพักร้อน 6 วัน/ปี (ต้องทำงานครบ 1 ปี)
+  weddingLeaveQuota    Int @default(3)    // ลาแต่งงาน 3 วัน (ใช้ได้ 1 ครั้งตลอดอายุงาน)
+  ordinationLeaveQuota Int @default(15)   // ลาบวช 15 วัน (ใช้ได้ 1 ครั้ง)
+  childSickLeaveQuota  Int @default(3)    // ลาบุตรป่วย 3 วัน/ปี
   
   // วันลาที่ใช้ไป
-  sickLeaveUsed       Int @default(0)
-  personalLeaveUsed   Int @default(0)
-  annualLeaveUsed     Int @default(0)
+  sickLeaveUsed        Int @default(0)
+  personalLeaveUsed    Int @default(0)
+  annualLeaveUsed      Int @default(0)
+  weddingLeaveUsed     Int @default(0)
+  ordinationLeaveUsed  Int @default(0)
+  childSickLeaveUsed   Int @default(0)
+  
+  // Flag สำหรับลาครั้งเดียว
+  hasUsedWeddingLeave    Boolean @default(false)
+  hasUsedOrdinationLeave Boolean @default(false)
   
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
@@ -442,16 +452,23 @@ model LeaveRequest {
   employeeName String
   department   String?
   
-  leaveType    String   // sick, personal, annual, maternity, military, ordination, other
+  // sick, personal, annual, wedding, ordination, childSick
+  leaveType    String   
   startDate    DateTime
   endDate      DateTime
   totalDays    Float    // รองรับลาครึ่งวัน (0.5)
   
   reason       String
-  attachment   String?  // URL to medical certificate, etc.
+  attachment   String?  // URL to medical certificate (required if sick > 3 days)
+  
+  // ฟิลด์ใหม่ตาม requirement
+  isEmergency       Boolean @default(false)  // ลาฉุกเฉินหรือไม่
+  consecutiveDays   Int     @default(1)      // จำนวนวันติดต่อกัน
+  requiresDocument  Boolean @default(false)  // ต้องแนบเอกสารหรือไม่
   
   status       String   @default("pending") // pending, approved, rejected, cancelled
   approvedBy   String?
+  approverName String?
   approvedAt   DateTime?
   rejectReason String?
   
@@ -463,7 +480,7 @@ model LeaveRequest {
   @@index([startDate])
 }
 
-// Overtime Request - คำขอ OT
+// Overtime Request - คำขอ OT (Pre-approval required!)
 model OvertimeRequest {
   id           String   @id @default(cuid())
   
@@ -474,18 +491,37 @@ model OvertimeRequest {
   date         DateTime
   startTime    String   // เวลาเริ่ม OT (e.g., "18:00")
   endTime      String   // เวลาสิ้นสุด (e.g., "21:00")
-  totalHours   Float
+  plannedHours Float    // ชั่วโมงที่ขอ
+  actualHours  Float?   // ชั่วโมงจริง (หลังทำงาน)
+  breakMinutes Int      @default(0)  // เวลาพักส่วนตัว (นาที)
   
-  otType       String   @default("normal") // normal, holiday, special
-  multiplier   Float    @default(1.5)      // 1.5x, 2x, 3x
+  // OT Type & Multiplier
+  otType       String   @default("normal") // normal (1.5x), holiday (2x)
+  multiplier   Float    @default(1.5)      // 1.5x วันปกติ, 2.0x วันหยุด
+  isHoliday    Boolean  @default(false)    // เสาร์-อาทิตย์ หรือนักขัตฤกษ์
   
   reason       String
   projectName  String?  // ชื่องาน/โปรเจค
   
-  status       String   @default("pending") // pending, approved, rejected, cancelled
+  // OT นอกสถานที่
+  isOffsite    Boolean  @default(false)
+  location     String?
+  
+  // Pre-approval workflow (REQUIRED!)
+  preApproved     Boolean   @default(false)
+  preApprovedBy   String?
+  preApprovedAt   DateTime?
+  
+  // Final status
+  status       String   @default("pending") // pending, pre-approved, completed, rejected, cancelled
   approvedBy   String?
+  approverName String?
   approvedAt   DateTime?
   rejectReason String?
+  
+  // หัวหน้าปรับชั่วโมง (กรณี offsite)
+  adjustedHours Float?
+  adjustedNote  String?
   
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
@@ -503,16 +539,29 @@ model AllowanceRequest {
   employeeName  String
   department    String?
   
-  allowanceType String   // travel, meal, accommodation, fuel, phone, other
-  date          DateTime
-  amount        Float    // จำนวนเงิน (บาท)
+  // ประเภทพื้นที่ปฏิบัติงาน
+  locationType  String   @default("local") // local (200), domestic (400), international (800)
+  dailyRate     Float    @default(200)     // อัตราต่อวัน (บาท)
   
-  description   String   // รายละเอียด
-  destination   String?  // สถานที่ (กรณีเดินทาง)
-  receipt       String?  // URL to receipt image
+  // วันที่
+  startDate     DateTime
+  endDate       DateTime
+  workDays      Int      // วันปฏิบัติงานจริง (นับเบี้ยเลี้ยง)
+  travelDays    Int      @default(0)       // วันเดินทาง (ไม่นับเบี้ยเลี้ยง)
+  totalAmount   Float    // workDays * dailyRate
+  
+  // รายละเอียด
+  projectName   String   // ชื่องาน (ถ่ายทำ/จัดงาน/ประชุม)
+  destination   String   // สถานที่ปฏิบัติงาน
+  description   String?  // รายละเอียดเพิ่มเติม
+  
+  // ขอ OFF DAY จากวันเดินทาง
+  requestOffDay Boolean  @default(false)
+  offDayStatus  String?  // pending, approved, rejected
   
   status        String   @default("pending") // pending, approved, rejected, cancelled
   approvedBy    String?
+  approverName  String?
   approvedAt    DateTime?
   rejectReason  String?
   
@@ -521,5 +570,51 @@ model AllowanceRequest {
 
   @@index([employeeId])
   @@index([status])
+  @@index([startDate])
+}
+
+// Late Count Tracking - นับสถิติมาสาย
+model LateRecord {
+  id           String   @id @default(cuid())
+  
+  employeeId   String
+  employeeName String
+  
+  date         DateTime
+  checkInTime  DateTime
+  minutesLate  Int      // จำนวนนาทีที่สาย (หลัง 09:15)
+  
+  // Warning issued
+  warningIssued  Boolean  @default(false)
+  warningIssuedAt DateTime?
+  
+  createdAt    DateTime @default(now())
+
+  @@unique([employeeId, date])
+  @@index([employeeId])
   @@index([date])
+}
+
+// Monthly Late Summary - สรุปมาสายรายเดือน
+model LateSummary {
+  id           String   @id @default(cuid())
+  
+  employeeId   String
+  employeeName String
+  
+  year         Int
+  month        Int      // 1-12
+  
+  lateCount    Int      @default(0)  // จำนวนครั้งที่มาสาย
+  totalMinutes Int      @default(0)  // รวมนาทีที่สาย
+  
+  // Warning เมื่อครบ 3 ครั้ง
+  warningAt    DateTime?
+  warningTo    String?   // ส่งถึงใคร (HR/หัวหน้า)
+  
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([employeeId, year, month])
+  @@index([employeeId])
 }
