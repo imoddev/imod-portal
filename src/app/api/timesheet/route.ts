@@ -166,7 +166,8 @@ export async function POST(request: NextRequest) {
         record = await prisma.attendance.create({ data: createData });
       } catch (e: any) {
         // If new fields don't exist, try without them
-        if (e.code === 'P2009' || e.message?.includes('Unknown field')) {
+        console.error("Attendance create error:", e.message);
+        try {
           record = await prisma.attendance.create({
             data: {
               employeeId,
@@ -178,8 +179,9 @@ export async function POST(request: NextRequest) {
               notes,
             },
           });
-        } else {
-          throw e;
+        } catch (e2: any) {
+          console.error("Fallback create error:", e2.message);
+          throw e2;
         }
       }
 
