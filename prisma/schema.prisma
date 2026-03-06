@@ -257,8 +257,8 @@ model Employee {
   profileImage  String?
   
   managerId     String?  // Employee ID of manager
-  startDate     DateTime?
-  // birthDate     DateTime?  // TODO: Add after migration
+  // startDate     DateTime?  // TODO: Add via Vercel DB dashboard
+  // birthDate     DateTime?  // TODO: Add via Vercel DB dashboard
   
   salary        Float?   // เงินเดือน (ไม่แสดงทั่วไป)
   bankAccount   String?  // เลขบัญชี
