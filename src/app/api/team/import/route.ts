@@ -23,49 +23,59 @@ export async function POST(request: NextRequest) {
     for (const emp of employees) {
       try {
         // Check if exists by email or discordId
-        const existing = await prisma.employee.findFirst({
-          where: {
-            OR: [
-              emp.email ? { email: emp.email } : {},
-              emp.discordId ? { discordId: emp.discordId } : {},
-            ].filter(o => Object.keys(o).length > 0),
-          },
-        });
+        // Find existing by email or discordId
+        let existing = null;
+        if (emp.email) {
+          existing = await prisma.employee.findFirst({
+            where: { email: emp.email },
+          });
+        }
+        if (!existing && emp.discordId) {
+          existing = await prisma.employee.findFirst({
+            where: { discordId: emp.discordId },
+          });
+        }
 
         if (existing) {
           if (overwrite) {
+            const updateData: any = {
+              name: emp.name,
+              nickname: emp.nickname || null,
+              phone: emp.phone || null,
+              department: emp.department,
+              jobTitle: emp.jobTitle || null,
+              role: emp.role || "member",
+              discordId: emp.discordId || null,
+            };
+            // Only add date fields if they exist in schema
+            if (emp.birthDate) updateData.birthDate = new Date(emp.birthDate);
+            if (emp.startDate) updateData.startDate = new Date(emp.startDate);
+            
             await prisma.employee.update({
               where: { id: existing.id },
-              data: {
-                name: emp.name,
-                nickname: emp.nickname || null,
-                phone: emp.phone || null,
-                department: emp.department,
-                jobTitle: emp.jobTitle || null,
-                role: emp.role || "member",
-                birthDate: emp.birthDate ? new Date(emp.birthDate) : null,
-                startDate: emp.startDate ? new Date(emp.startDate) : null,
-                discordId: emp.discordId || null,
-              },
+              data: updateData,
             });
             results.updated++;
           } else {
             results.skipped++;
           }
         } else {
+          const createData: any = {
+            name: emp.name,
+            nickname: emp.nickname || null,
+            email: emp.email || null,
+            phone: emp.phone || null,
+            department: emp.department,
+            jobTitle: emp.jobTitle || null,
+            role: emp.role || "member",
+            discordId: emp.discordId || null,
+          };
+          // Only add date fields if they exist in schema
+          if (emp.birthDate) createData.birthDate = new Date(emp.birthDate);
+          if (emp.startDate) createData.startDate = new Date(emp.startDate);
+          
           await prisma.employee.create({
-            data: {
-              name: emp.name,
-              nickname: emp.nickname || null,
-              email: emp.email || null,
-              phone: emp.phone || null,
-              department: emp.department,
-              jobTitle: emp.jobTitle || null,
-              role: emp.role || "member",
-              birthDate: emp.birthDate ? new Date(emp.birthDate) : null,
-              startDate: emp.startDate ? new Date(emp.startDate) : null,
-              discordId: emp.discordId || null,
-            },
+            data: createData,
           });
           results.created++;
         }
