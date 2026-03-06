@@ -86,8 +86,8 @@ export async function POST(request: NextRequest) {
         lineId,
         profileImage,
         managerId,
-        startDate: startDate ? new Date(startDate) : null,
-        birthDate: birthDate ? new Date(birthDate) : null,
+        // startDate: startDate ? new Date(startDate) : null, // TODO: add after migration
+        // birthDate: birthDate ? new Date(birthDate) : null, // TODO: add after migration
       },
     });
 
