@@ -392,6 +392,8 @@ export default function LongToShortPage() {
           clipCount, 
           maxDuration,
           highlightDuration,
+          resolution,
+          orientation,
         }),
         mode: "cors",
       });
