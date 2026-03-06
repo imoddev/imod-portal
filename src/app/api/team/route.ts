@@ -63,6 +63,7 @@ export async function POST(request: NextRequest) {
       profileImage,
       managerId,
       startDate,
+      birthDate,
     } = body;
 
     if (!name || !department) {
@@ -86,6 +87,7 @@ export async function POST(request: NextRequest) {
         profileImage,
         managerId,
         startDate: startDate ? new Date(startDate) : null,
+        birthDate: birthDate ? new Date(birthDate) : null,
       },
     });
 

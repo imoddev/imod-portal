@@ -50,6 +50,8 @@ interface Employee {
   profileImage: string | null;
   discordId: string | null;
   lineId: string | null;
+  birthDate: string | null;
+  startDate: string | null;
 }
 
 const departments = [
@@ -79,7 +81,38 @@ const emptyForm = {
   role: "member",
   discordId: "",
   lineId: "",
+  birthDate: "",
+  startDate: "",
 };
+
+// คำนวณอายุงาน
+function calculateTenure(startDate: string | null): string {
+  if (!startDate) return "-";
+  const start = new Date(startDate);
+  const now = new Date();
+  
+  let years = now.getFullYear() - start.getFullYear();
+  let months = now.getMonth() - start.getMonth();
+  let days = now.getDate() - start.getDate();
+  
+  if (days < 0) {
+    months--;
+    const lastMonth = new Date(now.getFullYear(), now.getMonth(), 0);
+    days += lastMonth.getDate();
+  }
+  
+  if (months < 0) {
+    years--;
+    months += 12;
+  }
+  
+  const parts = [];
+  if (years > 0) parts.push(`${years} ปี`);
+  if (months > 0) parts.push(`${months} เดือน`);
+  if (days > 0 || parts.length === 0) parts.push(`${days} วัน`);
+  
+  return parts.join(" ");
+}
 
 export default function TeamPage() {
   const [employees, setEmployees] = useState<Employee[]>([]);
@@ -197,6 +230,8 @@ export default function TeamPage() {
       role: emp.role,
       discordId: emp.discordId || "",
       lineId: emp.lineId || "",
+      birthDate: emp.birthDate ? emp.birthDate.split("T")[0] : "",
+      startDate: emp.startDate ? emp.startDate.split("T")[0] : "",
     });
     setShowEditDialog(true);
   };
@@ -301,6 +336,29 @@ export default function TeamPage() {
             onChange={(e) => setForm({ ...form, discordId: e.target.value })}
             placeholder="123456789012345678"
           />
+        </div>
+      </div>
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label>วันเดือนปีเกิด</Label>
+          <Input
+            type="date"
+            value={form.birthDate}
+            onChange={(e) => setForm({ ...form, birthDate: e.target.value })}
+          />
+        </div>
+        <div className="space-y-2">
+          <Label>วันเริ่มงาน</Label>
+          <Input
+            type="date"
+            value={form.startDate}
+            onChange={(e) => setForm({ ...form, startDate: e.target.value })}
+          />
+          {form.startDate && (
+            <p className="text-xs text-muted-foreground">
+              อายุงาน: {calculateTenure(form.startDate)}
+            </p>
+          )}
         </div>
       </div>
     </div>

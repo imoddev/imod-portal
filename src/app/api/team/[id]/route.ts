@@ -53,6 +53,8 @@ export async function PATCH(
       discordId,
       lineId,
       profileImage,
+      birthDate,
+      startDate,
     } = body;
 
     const updateData: any = {};
@@ -66,6 +68,8 @@ export async function PATCH(
     if (discordId !== undefined) updateData.discordId = discordId || null;
     if (lineId !== undefined) updateData.lineId = lineId || null;
     if (profileImage !== undefined) updateData.profileImage = profileImage || null;
+    if (birthDate !== undefined) updateData.birthDate = birthDate ? new Date(birthDate) : null;
+    if (startDate !== undefined) updateData.startDate = startDate ? new Date(startDate) : null;
 
     const employee = await prisma.employee.update({
       where: { id },

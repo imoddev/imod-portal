@@ -647,26 +647,16 @@ export default function LongToShortPage() {
                   </div>
                   
                   {/* Import Button */}
-                  {selectedNASFile && (
-                    <div className="mt-3 space-y-2">
-                      {isImporting ? (
-                        <div className="space-y-2">
-                          <div className="flex items-center justify-between text-sm">
-                            <span>กำลังนำเข้า...</span>
-                            <span className="font-medium">{importProgress}%</span>
-                          </div>
-                          <Progress value={importProgress} className="h-2" />
-                        </div>
-                      ) : (
-                        <Button 
-                          className="w-full" 
-                          onClick={() => importFromNAS(selectedNASFile)}
-                          disabled={isProcessing || isImporting}
-                        >
-                          <Download className="h-4 w-4 mr-2" />
-                          นำเข้าไฟล์
-                        </Button>
-                      )}
+                  {selectedNASFile && !isImporting && (
+                    <div className="mt-3">
+                      <Button 
+                        className="w-full" 
+                        onClick={() => importFromNAS(selectedNASFile)}
+                        disabled={isProcessing || isImporting}
+                      >
+                        <Download className="h-4 w-4 mr-2" />
+                        นำเข้าไฟล์
+                      </Button>
                     </div>
                   )}
                 </div>
