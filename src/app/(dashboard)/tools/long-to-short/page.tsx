@@ -1067,60 +1067,63 @@ export default function LongToShortPage() {
         </div>
       )}
 
-      {/* Output Files - Responsive */}
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between py-3">
-          <CardTitle className="text-sm">🎬 Final Output</CardTitle>
-          <Button variant="ghost" size="sm" onClick={fetchOutputs} disabled={loadingOutputs}>
-            {loadingOutputs ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
-          </Button>
-        </CardHeader>
-        <CardContent className="space-y-2 pt-0">
-          {outputFolders.length === 0 ? (
-            <p className="text-xs text-muted-foreground">ยังไม่มีไฟล์</p>
-          ) : (
-            <div className="space-y-2 max-h-48 overflow-y-auto">
-              {outputFolders.slice(0, 5).map((folder) => (
-                <div key={folder.name} className="p-2 rounded-lg bg-muted/50 border space-y-1">
-                  <p className="text-xs font-medium truncate">{folder.name}</p>
-                  <div className="flex flex-col gap-0.5">
-                    {folder.files.slice(0, 3).map((file) => (
-                      <a
-                        key={file}
-                        href={`${API_URL}/download/${encodeURIComponent(folder.name)}/${encodeURIComponent(file)}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-primary/10 text-primary text-[10px] hover:bg-primary/20 truncate max-w-full"
-                      >
-                        <Download className="h-2.5 w-2.5 flex-shrink-0" />
-                        <span className="truncate">{file}</span>
-                      </a>
-                    ))}
-                    {folder.files.length > 3 && (
-                      <span className="text-[10px] text-muted-foreground">+{folder.files.length - 3} more</span>
-                    )}
+      {/* Bottom Cards - Full Width on Mobile */}
+      <div className="grid gap-4 sm:grid-cols-2 w-full">
+        {/* Output Files */}
+        <Card className="w-full">
+          <CardHeader className="flex flex-row items-center justify-between py-3">
+            <CardTitle className="text-sm">🎬 Final Output</CardTitle>
+            <Button variant="ghost" size="sm" onClick={fetchOutputs} disabled={loadingOutputs}>
+              {loadingOutputs ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
+            </Button>
+          </CardHeader>
+          <CardContent className="space-y-2 pt-0">
+            {outputFolders.length === 0 ? (
+              <p className="text-xs text-muted-foreground">ยังไม่มีไฟล์</p>
+            ) : (
+              <div className="space-y-2 max-h-48 overflow-y-auto">
+                {outputFolders.slice(0, 5).map((folder) => (
+                  <div key={folder.name} className="p-2 rounded-lg bg-muted/50 border space-y-1">
+                    <p className="text-xs font-medium truncate">{folder.name}</p>
+                    <div className="flex flex-col gap-0.5">
+                      {folder.files.slice(0, 3).map((file) => (
+                        <a
+                          key={file}
+                          href={`${API_URL}/download/${encodeURIComponent(folder.name)}/${encodeURIComponent(file)}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-primary/10 text-primary text-[10px] hover:bg-primary/20 truncate"
+                        >
+                          <Download className="h-2.5 w-2.5 flex-shrink-0" />
+                          <span className="truncate">{file}</span>
+                        </a>
+                      ))}
+                      {folder.files.length > 3 && (
+                        <span className="text-[10px] text-muted-foreground">+{folder.files.length - 3} more</span>
+                      )}
+                    </div>
+                    <p className="text-[10px] text-muted-foreground">
+                      {new Date(folder.date).toLocaleDateString('th-TH')}
+                    </p>
                   </div>
-                  <p className="text-[10px] text-muted-foreground">
-                    {new Date(folder.date).toLocaleDateString('th-TH')}
-                  </p>
-                </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
-      {/* Info Panel - Compact */}
-      <Card>
-        <CardHeader className="py-2">
-          <CardTitle className="text-xs">📁 ที่เก็บไฟล์</CardTitle>
-        </CardHeader>
-        <CardContent className="text-[10px] text-muted-foreground space-y-0.5 pt-0">
-          <p className="truncate"><strong>API:</strong> shorts-api.iphonemod.net</p>
-          <p className="truncate hidden sm:block"><strong>Temp:</strong> ~/Videos/LongToShort/temp/</p>
-          <p className="truncate hidden sm:block"><strong>Output:</strong> ~/Videos/LongToShort/output/</p>
-        </CardContent>
-      </Card>
+        {/* Info Panel */}
+        <Card className="w-full">
+          <CardHeader className="py-2">
+            <CardTitle className="text-xs">📁 ที่เก็บไฟล์</CardTitle>
+          </CardHeader>
+          <CardContent className="text-[10px] text-muted-foreground space-y-0.5 pt-0">
+            <p className="truncate"><strong>API:</strong> shorts-api.iphonemod.net</p>
+            <p className="truncate"><strong>Temp:</strong> ~/Videos/LongToShort/temp/</p>
+            <p className="truncate"><strong>Output:</strong> ~/Videos/LongToShort/output/</p>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }
