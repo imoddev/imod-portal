@@ -89,6 +89,12 @@ export default function LongToShortPage() {
   const [resolution, setResolution] = useState<"FHD" | "2K" | "4K">("2K");
   const [orientation, setOrientation] = useState<"vertical" | "landscape">("vertical");
   
+  // Customer Edit state
+  type Segment = { index: number; story_role: string; title: string; timecode: { start: string; end: string; startSeconds: number; endSeconds: number }; duration: number; selected: boolean };
+  const [customerSegments, setCustomerSegments] = useState<Segment[]>([]);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [showCustomEdit, setShowCustomEdit] = useState(false);
+  
   const RESOLUTIONS_VERTICAL = {
     'FHD': { label: 'Full HD (1080x1920)', width: 1080, height: 1920 },
     '2K': { label: '2K (1440x2560)', width: 1440, height: 2560 },
@@ -148,6 +154,57 @@ export default function LongToShortPage() {
     }
   };
   
+  // Analyze segments for Customer Edit mode
+  const handleAnalyze = async () => {
+    if (!selectedFile) return;
+    setIsAnalyzing(true);
+    try {
+      const res = await fetch(`${API_URL}/analyze/${selectedFile.id}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ highlightDuration }),
+        mode: "cors",
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setCustomerSegments(data.segments || []);
+        setShowCustomEdit(true);
+      }
+    } catch (err) {
+      console.error("Analyze error:", err);
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
+
+  // Get total selected duration
+  const getSelectedDuration = () =>
+    customerSegments.filter(s => s.selected).reduce((sum, s) => sum + s.duration, 0);
+
+  // Cut with custom segments
+  const handleCutCustom = async () => {
+    if (!selectedFile) return;
+    const selected = customerSegments.filter(s => s.selected);
+    if (!selected.length) return;
+    setIsProcessing(true);
+    setJobStatus({ id: selectedFile.id, status: "starting", progress: 0 });
+    try {
+      const res = await fetch(`${API_URL}/cut-custom/${selectedFile.id}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ segments: selected.map(s => s.timecode), resolution, orientation }),
+        mode: "cors",
+      });
+      if (res.ok) {
+        setShowCustomEdit(false);
+        pollStatus(selectedFile.id);
+      }
+    } catch (err) {
+      console.error("Cut custom error:", err);
+      setIsProcessing(false);
+    }
+  };
+
   // Fetch output folders
   const fetchOutputs = async () => {
     setLoadingOutputs(true);
@@ -789,6 +846,23 @@ export default function LongToShortPage() {
                         สรุปเป็นคลิปเดียว 2-4 นาที เหมือน trailer
                       </p>
                     </button>
+                    <button
+                      onClick={() => setMode("highlight")}
+                      disabled={isProcessing}
+                      className={`p-4 rounded-xl border-2 transition-all text-left border-amber-500/50 hover:border-amber-500 ${
+                        showCustomEdit ? "bg-amber-500/10 border-amber-500" : ""
+                      }`}
+                      onClickCapture={(e) => { e.stopPropagation(); if (!isProcessing && selectedFile) { setMode("highlight"); handleAnalyze(); } }}
+                    >
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-lg">✏️</span>
+                        <span className="font-semibold">Customer Edit</span>
+                        <Badge variant="outline" className="text-[10px] border-amber-500 text-amber-600">Beta</Badge>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        AI วิเคราะห์ → คุณเลือก segment เอง
+                      </p>
+                    </button>
                   </div>
 
                   {/* Settings based on mode */}
@@ -896,6 +970,81 @@ export default function LongToShortPage() {
                           🎬 <strong>Trailer Mode:</strong> AI จะวิเคราะห์โครงเรื่องจาก transcript 
                           แล้วเรียบเรียงเนื้อหาให้ดึงดูดความสนใจ เล่าตั้งแต่ต้นจนจบแบบกระชับ
                         </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Customer Edit Panel */}
+                  {showCustomEdit && customerSegments.length > 0 && (
+                    <div className="border-2 border-amber-500/50 rounded-xl p-4 space-y-3 bg-amber-500/5">
+                      <div className="flex items-center justify-between">
+                        <h3 className="font-semibold flex items-center gap-2">
+                          ✏️ เลือก Segments
+                          <Badge variant="outline" className="text-xs border-amber-500 text-amber-600">Customer Edit</Badge>
+                        </h3>
+                        <div className="flex items-center gap-2 text-sm">
+                          <span className="text-muted-foreground">เวลารวม:</span>
+                          <span className={`font-bold ${getSelectedDuration() > highlightDuration ? "text-red-500" : "text-green-600"}`}>
+                            {Math.floor(getSelectedDuration() / 60)}:{Math.round(getSelectedDuration() % 60).toString().padStart(2, '0')}
+                          </span>
+                          <span className="text-muted-foreground">/ {Math.floor(highlightDuration / 60)}:{(highlightDuration % 60).toString().padStart(2, '0')} นาที</span>
+                        </div>
+                      </div>
+                      
+                      <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+                        {customerSegments.map((seg, i) => (
+                          <div
+                            key={seg.index}
+                            className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-all ${
+                              seg.selected ? "border-amber-500 bg-amber-500/10" : "border-muted bg-muted/30"
+                            }`}
+                            onClick={() => {
+                              const updated = [...customerSegments];
+                              updated[i] = { ...seg, selected: !seg.selected };
+                              setCustomerSegments(updated);
+                            }}
+                          >
+                            <div className={`mt-0.5 w-5 h-5 rounded flex-shrink-0 border-2 flex items-center justify-center ${seg.selected ? "border-amber-500 bg-amber-500" : "border-muted-foreground"}`}>
+                              {seg.selected && <span className="text-white text-xs">✓</span>}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <Badge variant="outline" className={`text-[10px] ${
+                                  seg.story_role === 'hook' ? 'border-blue-500 text-blue-600' :
+                                  seg.story_role === 'ending' ? 'border-green-500 text-green-600' :
+                                  'border-purple-500 text-purple-600'
+                                }`}>
+                                  {seg.story_role === 'hook' ? '🎣 Hook' : seg.story_role === 'ending' ? '🎬 Ending' : '📖 Main'}
+                                </Badge>
+                                <span className="text-xs text-muted-foreground font-mono">
+                                  {seg.timecode.start} → {seg.timecode.end}
+                                </span>
+                                <span className="text-xs text-muted-foreground">({seg.duration}s)</span>
+                              </div>
+                              <p className="text-sm mt-0.5 line-clamp-1">{seg.title}</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+
+                      <div className="flex gap-2 pt-1">
+                        <Button
+                          size="sm" variant="outline"
+                          onClick={() => setCustomerSegments(customerSegments.map(s => ({ ...s, selected: true })))}
+                        >เลือกทั้งหมด</Button>
+                        <Button
+                          size="sm" variant="outline"
+                          onClick={() => setCustomerSegments(customerSegments.map(s => ({ ...s, selected: false })))}
+                        >ล้างทั้งหมด</Button>
+                        <Button
+                          size="sm"
+                          className="ml-auto bg-amber-500 hover:bg-amber-600 text-white"
+                          onClick={handleCutCustom}
+                          disabled={isProcessing || !customerSegments.some(s => s.selected)}
+                        >
+                          {isProcessing ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : "✂️ "}
+                          ตัดต่อ ({customerSegments.filter(s => s.selected).length} segments)
+                        </Button>
                       </div>
                     </div>
                   )}
