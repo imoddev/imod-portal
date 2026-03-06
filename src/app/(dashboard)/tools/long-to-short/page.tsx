@@ -90,10 +90,11 @@ export default function LongToShortPage() {
   const [orientation, setOrientation] = useState<"vertical" | "landscape">("vertical");
   
   // Customer Edit state
-  type Segment = { index: number; story_role: string; title: string; timecode: { start: string; end: string; startSeconds: number; endSeconds: number }; duration: number; selected: boolean };
+  type Segment = { index: number; story_role: string; title: string; timecode: { start: string; end: string; startSeconds: number; endSeconds: number }; duration: number; transcriptText?: string; selected: boolean };
   const [customerSegments, setCustomerSegments] = useState<Segment[]>([]);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [showCustomEdit, setShowCustomEdit] = useState(false);
+  const [previewSegment, setPreviewSegment] = useState<Segment | null>(null);
   
   const RESOLUTIONS_VERTICAL = {
     'FHD': { label: 'Full HD (1080x1920)', width: 1080, height: 1920 },
@@ -991,38 +992,53 @@ export default function LongToShortPage() {
                         </div>
                       </div>
                       
-                      <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+                      <div className="space-y-2 max-h-80 overflow-y-auto pr-1">
                         {customerSegments.map((seg, i) => (
-                          <div
-                            key={seg.index}
-                            className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-all ${
-                              seg.selected ? "border-amber-500 bg-amber-500/10" : "border-muted bg-muted/30"
-                            }`}
-                            onClick={() => {
-                              const updated = [...customerSegments];
-                              updated[i] = { ...seg, selected: !seg.selected };
-                              setCustomerSegments(updated);
-                            }}
-                          >
-                            <div className={`mt-0.5 w-5 h-5 rounded flex-shrink-0 border-2 flex items-center justify-center ${seg.selected ? "border-amber-500 bg-amber-500" : "border-muted-foreground"}`}>
-                              {seg.selected && <span className="text-white text-xs">✓</span>}
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <Badge variant="outline" className={`text-[10px] ${
-                                  seg.story_role === 'hook' ? 'border-blue-500 text-blue-600' :
-                                  seg.story_role === 'ending' ? 'border-green-500 text-green-600' :
-                                  'border-purple-500 text-purple-600'
-                                }`}>
-                                  {seg.story_role === 'hook' ? '🎣 Hook' : seg.story_role === 'ending' ? '🎬 Ending' : '📖 Main'}
-                                </Badge>
-                                <span className="text-xs text-muted-foreground font-mono">
-                                  {seg.timecode.start} → {seg.timecode.end}
-                                </span>
-                                <span className="text-xs text-muted-foreground">({seg.duration}s)</span>
+                          <div key={seg.index} className="space-y-0">
+                            <div
+                              className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-all ${
+                                seg.selected ? "border-amber-500 bg-amber-500/10" : "border-muted bg-muted/30"
+                              }`}
+                              onClick={() => {
+                                const updated = [...customerSegments];
+                                updated[i] = { ...seg, selected: !seg.selected };
+                                setCustomerSegments(updated);
+                                setPreviewSegment(!seg.selected ? { ...seg, selected: true } : null);
+                              }}
+                            >
+                              <div className={`mt-0.5 w-5 h-5 rounded flex-shrink-0 border-2 flex items-center justify-center ${seg.selected ? "border-amber-500 bg-amber-500" : "border-muted-foreground"}`}>
+                                {seg.selected && <span className="text-white text-xs font-bold">✓</span>}
                               </div>
-                              <p className="text-sm mt-0.5 line-clamp-1">{seg.title}</p>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <Badge variant="outline" className={`text-[10px] ${
+                                    seg.story_role === 'hook' ? 'border-blue-500 text-blue-600' :
+                                    seg.story_role === 'ending' ? 'border-green-500 text-green-600' :
+                                    'border-purple-500 text-purple-600'
+                                  }`}>
+                                    {seg.story_role === 'hook' ? '🎣 Hook' : seg.story_role === 'ending' ? '🎬 Ending' : '📖 Main'}
+                                  </Badge>
+                                  <span className="text-xs font-mono text-muted-foreground">
+                                    {seg.timecode.start} → {seg.timecode.end}
+                                  </span>
+                                  <span className="text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded">{seg.duration}s</span>
+                                </div>
+                                {/* Transcript preview */}
+                                {seg.transcriptText && (
+                                  <p className="text-xs mt-1.5 text-muted-foreground leading-relaxed line-clamp-2 italic">
+                                    &ldquo;{seg.transcriptText}&rdquo;
+                                  </p>
+                                )}
+                              </div>
                             </div>
+                            {/* Expanded preview when selected */}
+                            {seg.selected && previewSegment?.index === seg.index && seg.transcriptText && (
+                              <div className="mx-3 mb-1 p-2 rounded-b-lg bg-amber-500/5 border border-t-0 border-amber-500/30">
+                                <p className="text-xs text-foreground leading-relaxed">
+                                  🎙️ <span className="italic">&ldquo;{seg.transcriptText}&rdquo;</span>
+                                </p>
+                              </div>
+                            )}
                           </div>
                         ))}
                       </div>
