@@ -732,12 +732,23 @@ export default function LongToShortPage() {
               <CardTitle className="text-base">ประมวลผล</CardTitle>
             </CardHeader>
             <CardContent className="space-y-6">
-              {!selectedFile ? (
+              {/* Import Progress - Show when importing */}
+              {isImporting && (
+                <div className="p-4 rounded-lg bg-amber-500/10 border border-amber-500/30 space-y-2">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-amber-600 dark:text-amber-400">📥 กำลังนำเข้าจาก NAS...</span>
+                    <span className="font-medium">{importProgress}%</span>
+                  </div>
+                  <Progress value={importProgress} className="h-2" />
+                </div>
+              )}
+              
+              {!selectedFile && !isImporting ? (
                 <div className="text-center py-12 text-muted-foreground">
                   <FileVideo className="h-12 w-12 mx-auto mb-2 opacity-20" />
                   <p>เลือกไฟล์จากคิวเพื่อเริ่มตัด</p>
                 </div>
-              ) : (
+              ) : selectedFile ? (
                 <>
                   {/* Selected File Info */}
                   <div className="p-4 bg-muted/50 rounded-lg">
@@ -1050,44 +1061,47 @@ export default function LongToShortPage() {
                     </div>
                   )}
                 </>
-              )}
+              ) : null}
             </CardContent>
           </Card>
         </div>
       )}
 
-      {/* Output Files */}
+      {/* Output Files - Responsive */}
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle className="text-base">🎬 Final Output</CardTitle>
+        <CardHeader className="flex flex-row items-center justify-between py-3">
+          <CardTitle className="text-sm">🎬 Final Output</CardTitle>
           <Button variant="ghost" size="sm" onClick={fetchOutputs} disabled={loadingOutputs}>
-            {loadingOutputs ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+            {loadingOutputs ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
           </Button>
         </CardHeader>
-        <CardContent className="space-y-2">
+        <CardContent className="space-y-2 pt-0">
           {outputFolders.length === 0 ? (
-            <p className="text-sm text-muted-foreground">ยังไม่มีไฟล์ที่ตัดเสร็จ</p>
+            <p className="text-xs text-muted-foreground">ยังไม่มีไฟล์</p>
           ) : (
-            <div className="space-y-2 max-h-60 overflow-y-auto">
-              {outputFolders.map((folder) => (
+            <div className="space-y-2 max-h-48 overflow-y-auto">
+              {outputFolders.slice(0, 5).map((folder) => (
                 <div key={folder.name} className="p-2 rounded-lg bg-muted/50 border space-y-1">
-                  <p className="text-sm font-medium truncate">{folder.name}</p>
-                  <div className="flex flex-wrap gap-1">
-                    {folder.files.map((file) => (
+                  <p className="text-xs font-medium truncate">{folder.name}</p>
+                  <div className="flex flex-col gap-0.5">
+                    {folder.files.slice(0, 3).map((file) => (
                       <a
                         key={file}
                         href={`${API_URL}/download/${encodeURIComponent(folder.name)}/${encodeURIComponent(file)}`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-primary/10 text-primary text-xs hover:bg-primary/20"
+                        className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-primary/10 text-primary text-[10px] hover:bg-primary/20 truncate max-w-full"
                       >
-                        <Download className="h-3 w-3" />
-                        {file.length > 30 ? file.slice(0, 30) + '...' : file}
+                        <Download className="h-2.5 w-2.5 flex-shrink-0" />
+                        <span className="truncate">{file}</span>
                       </a>
                     ))}
+                    {folder.files.length > 3 && (
+                      <span className="text-[10px] text-muted-foreground">+{folder.files.length - 3} more</span>
+                    )}
                   </div>
-                  <p className="text-xs text-muted-foreground">
-                    {new Date(folder.date).toLocaleString('th-TH')}
+                  <p className="text-[10px] text-muted-foreground">
+                    {new Date(folder.date).toLocaleDateString('th-TH')}
                   </p>
                 </div>
               ))}
@@ -1096,15 +1110,15 @@ export default function LongToShortPage() {
         </CardContent>
       </Card>
 
-      {/* Info Panel */}
+      {/* Info Panel - Compact */}
       <Card>
-        <CardHeader>
-          <CardTitle className="text-base">📁 ที่เก็บไฟล์</CardTitle>
+        <CardHeader className="py-2">
+          <CardTitle className="text-xs">📁 ที่เก็บไฟล์</CardTitle>
         </CardHeader>
-        <CardContent className="text-sm text-muted-foreground space-y-1">
-          <p><strong>Temp:</strong> /Users/imodteam/Videos/LongToShort/temp/</p>
-          <p><strong>Output:</strong> /Users/imodteam/Videos/LongToShort/output/</p>
-          <p><strong>API:</strong> shorts-api.iphonemod.net (Mac Studio)</p>
+        <CardContent className="text-[10px] text-muted-foreground space-y-0.5 pt-0">
+          <p className="truncate"><strong>API:</strong> shorts-api.iphonemod.net</p>
+          <p className="truncate hidden sm:block"><strong>Temp:</strong> ~/Videos/LongToShort/temp/</p>
+          <p className="truncate hidden sm:block"><strong>Output:</strong> ~/Videos/LongToShort/output/</p>
         </CardContent>
       </Card>
     </div>
