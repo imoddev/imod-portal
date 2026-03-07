@@ -90,7 +90,7 @@ export default function LongToShortPage() {
   const [orientation, setOrientation] = useState<"vertical" | "landscape">("vertical");
   
   // Customer Edit state
-  type Segment = { index: number; story_role: string; title: string; timecode: { start: string; end: string; startSeconds: number; endSeconds: number }; duration: number; transcriptText?: string; selected: boolean };
+  type Segment = { index: number; story_role?: string; title?: string; text?: string; timecode: { start: string; end: string; startSeconds: number; endSeconds: number }; duration: number; transcriptText?: string; selected: boolean };
   const [customerSegments, setCustomerSegments] = useState<Segment[]>([]);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [showCustomEdit, setShowCustomEdit] = useState(false);
@@ -155,24 +155,23 @@ export default function LongToShortPage() {
     }
   };
   
-  // Analyze segments for Customer Edit mode
+  // Load full transcript for Custom Edit mode
   const handleAnalyze = async () => {
     if (!selectedFile) return;
     setIsAnalyzing(true);
     try {
-      const res = await fetch(`${API_URL}/analyze/${selectedFile.id}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ highlightDuration }),
-        mode: "cors",
-      });
+      const res = await fetch(`${API_URL}/transcript/${selectedFile.id}`, { mode: "cors" });
       if (res.ok) {
         const data = await res.json();
+        if (data.status === 'not_ready') {
+          alert("ยังไม่มี transcript\nกรุณาเริ่มต้นตัดคลิปด้วย Auto mode ก่อนอย่างน้อย 1 ครั้ง เพื่อให้ระบบ transcribe ไฟล์เสียง");
+          return;
+        }
         setCustomerSegments(data.segments || []);
         setShowCustomEdit(true);
       }
     } catch (err) {
-      console.error("Analyze error:", err);
+      console.error("Transcript load error:", err);
     } finally {
       setIsAnalyzing(false);
     }
@@ -193,7 +192,15 @@ export default function LongToShortPage() {
       const res = await fetch(`${API_URL}/cut-custom/${selectedFile.id}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ segments: selected.map(s => s.timecode), resolution, orientation }),
+        body: JSON.stringify({ 
+          segments: selected.map(s => ({ 
+            ...s.timecode, 
+            title: s.text?.substring(0, 50) || `Segment ${s.index}`,
+            story_role: 'main' 
+          })), 
+          resolution, 
+          orientation 
+        }),
         mode: "cors",
       });
       if (res.ok) {
@@ -848,20 +855,21 @@ export default function LongToShortPage() {
                       </p>
                     </button>
                     <button
-                      onClick={() => setMode("highlight")}
-                      disabled={isProcessing}
-                      className={`p-4 rounded-xl border-2 transition-all text-left border-amber-500/50 hover:border-amber-500 ${
-                        showCustomEdit ? "bg-amber-500/10 border-amber-500" : ""
-                      }`}
-                      onClickCapture={(e) => { e.stopPropagation(); if (!isProcessing && selectedFile) { setMode("highlight"); handleAnalyze(); } }}
+                      onClick={() => { if (!isProcessing && selectedFile) handleAnalyze(); }}
+                      disabled={isProcessing || !selectedFile}
+                      className={`p-4 rounded-xl border-2 transition-all text-left ${
+                        showCustomEdit
+                          ? "border-amber-500 bg-amber-500/10"
+                          : "border-amber-500/50 hover:border-amber-500"
+                      } ${(!selectedFile || isProcessing) ? "opacity-50 cursor-not-allowed" : ""}`}
                     >
                       <div className="flex items-center gap-2 mb-1">
                         <span className="text-lg">✏️</span>
-                        <span className="font-semibold">Customer Edit</span>
-                        <Badge variant="outline" className="text-[10px] border-amber-500 text-amber-600">Beta</Badge>
+                        <span className="font-semibold">Custom Edit</span>
+                        {isAnalyzing && <Loader2 className="h-3 w-3 animate-spin text-amber-500" />}
                       </div>
                       <p className="text-xs text-muted-foreground">
-                        AI วิเคราะห์ → คุณเลือก segment เอง
+                        ดู Transcript ทั้งหมด → เลือก segment เอง
                       </p>
                     </button>
                   </div>
@@ -992,53 +1000,40 @@ export default function LongToShortPage() {
                         </div>
                       </div>
                       
-                      <div className="space-y-2 max-h-80 overflow-y-auto pr-1">
+                      <p className="text-xs text-muted-foreground">
+                        Transcript ทั้งหมด {customerSegments.length} segments — เลือกช่วงที่ต้องการ
+                      </p>
+                      <div className="space-y-1 max-h-96 overflow-y-auto pr-1 border rounded-lg p-2 bg-muted/20">
                         {customerSegments.map((seg, i) => (
-                          <div key={seg.index} className="space-y-0">
-                            <div
-                              className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-all ${
-                                seg.selected ? "border-amber-500 bg-amber-500/10" : "border-muted bg-muted/30"
-                              }`}
-                              onClick={() => {
-                                const updated = [...customerSegments];
-                                updated[i] = { ...seg, selected: !seg.selected };
-                                setCustomerSegments(updated);
-                                setPreviewSegment(!seg.selected ? { ...seg, selected: true } : null);
-                              }}
-                            >
-                              <div className={`mt-0.5 w-5 h-5 rounded flex-shrink-0 border-2 flex items-center justify-center ${seg.selected ? "border-amber-500 bg-amber-500" : "border-muted-foreground"}`}>
-                                {seg.selected && <span className="text-white text-xs font-bold">✓</span>}
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-2 flex-wrap">
-                                  <Badge variant="outline" className={`text-[10px] ${
-                                    seg.story_role === 'hook' ? 'border-blue-500 text-blue-600' :
-                                    seg.story_role === 'ending' ? 'border-green-500 text-green-600' :
-                                    'border-purple-500 text-purple-600'
-                                  }`}>
-                                    {seg.story_role === 'hook' ? '🎣 Hook' : seg.story_role === 'ending' ? '🎬 Ending' : '📖 Main'}
-                                  </Badge>
-                                  <span className="text-xs font-mono text-muted-foreground">
-                                    {seg.timecode.start} → {seg.timecode.end}
-                                  </span>
-                                  <span className="text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded">{seg.duration}s</span>
-                                </div>
-                                {/* Transcript preview */}
-                                {seg.transcriptText && (
-                                  <p className="text-xs mt-1.5 text-muted-foreground leading-relaxed line-clamp-2 italic">
-                                    &ldquo;{seg.transcriptText}&rdquo;
-                                  </p>
-                                )}
-                              </div>
+                          <div
+                            key={seg.index}
+                            className={`flex items-start gap-2 p-2 rounded-lg cursor-pointer transition-all hover:bg-muted/50 ${
+                              seg.selected ? "bg-amber-500/10 border border-amber-500/50" : "border border-transparent"
+                            }`}
+                            onClick={() => {
+                              const updated = [...customerSegments];
+                              updated[i] = { ...seg, selected: !seg.selected };
+                              setCustomerSegments(updated);
+                            }}
+                          >
+                            {/* Checkbox */}
+                            <div className={`mt-0.5 w-4 h-4 rounded flex-shrink-0 border-2 flex items-center justify-center ${
+                              seg.selected ? "border-amber-500 bg-amber-500" : "border-muted-foreground/50"
+                            }`}>
+                              {seg.selected && <span className="text-white text-[10px] font-bold">✓</span>}
                             </div>
-                            {/* Expanded preview when selected */}
-                            {seg.selected && previewSegment?.index === seg.index && seg.transcriptText && (
-                              <div className="mx-3 mb-1 p-2 rounded-b-lg bg-amber-500/5 border border-t-0 border-amber-500/30">
-                                <p className="text-xs text-foreground leading-relaxed">
-                                  🎙️ <span className="italic">&ldquo;{seg.transcriptText}&rdquo;</span>
-                                </p>
+                            {/* Content */}
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2">
+                                <span className="text-[10px] font-mono text-primary bg-primary/10 px-1.5 py-0.5 rounded flex-shrink-0">
+                                  {seg.timecode.start.slice(0,8)}
+                                </span>
+                                <span className="text-[10px] text-muted-foreground flex-shrink-0">{seg.duration}s</span>
                               </div>
-                            )}
+                              <p className={`text-xs mt-0.5 leading-relaxed ${seg.selected ? "text-foreground" : "text-muted-foreground"}`}>
+                                {seg.text}
+                              </p>
+                            </div>
                           </div>
                         ))}
                       </div>
