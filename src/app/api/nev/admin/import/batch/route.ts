@@ -31,27 +31,43 @@ export async function POST(request: NextRequest) {
 
     // Create new FormData for Mac Studio
     const macStudioFormData = new FormData();
-    const batchId = `batch-${Date.now()}`;
+    
+    // ✅ Get brand/model/variant first
+    const brand = formData.get('brand') as string | null;
+    const model = formData.get('model') as string | null;
+    const variant = formData.get('variant') as string | null;
+    
+    console.log('[Batch Import] Received brand:', brand);
+    console.log('[Batch Import] Received model:', model);
+    console.log('[Batch Import] Received variant:', variant);
+    
+    // ✅ Create batchId from brand/model/variant if provided
+    let batchId: string;
+    const timestamp = Date.now();
+    
+    if (brand || model || variant) {
+      // Build batchId from available info: Brand-Model-Variant
+      const parts = [brand, model, variant].filter(Boolean);
+      const namePart = parts.join('-').replace(/\s+/g, '_');
+      batchId = `${namePart}-${timestamp}`;
+      console.log('[Batch Import] Using custom batchId:', batchId);
+    } else {
+      batchId = `batch-${timestamp}`;
+      console.log('[Batch Import] Using default batchId:', batchId);
+    }
     
     macStudioFormData.append('batchId', batchId);
     macStudioFormData.append('userId', 'vercel-upload');
     
-    // ✅ Forward brand/model/variant if provided
-    const brand = formData.get('brand');
-    const model = formData.get('model');
-    const variant = formData.get('variant');
-    
+    // ✅ Forward brand/model/variant to Mac Studio
     if (brand) {
-      macStudioFormData.append('brand', brand as string);
-      console.log('[Batch Import] Brand:', brand);
+      macStudioFormData.append('brand', brand);
     }
     if (model) {
-      macStudioFormData.append('model', model as string);
-      console.log('[Batch Import] Model:', model);
+      macStudioFormData.append('model', model);
     }
     if (variant) {
-      macStudioFormData.append('variant', variant as string);
-      console.log('[Batch Import] Variant:', variant);
+      macStudioFormData.append('variant', variant);
     }
     
     // Add all files
