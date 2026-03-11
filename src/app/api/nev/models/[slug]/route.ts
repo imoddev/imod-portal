@@ -22,6 +22,20 @@ export async function GET(
         variants: {
           where: { isActive: true },
           orderBy: { priceBaht: 'asc' },
+          include: {
+            // Extended specs V2.0
+            multimedia: true,
+            safety: true,
+            interior: true,
+            exterior: true,
+            evFeatures: true,
+            battery: true,
+            suspension: true,
+            brakes: true,
+            wheels: true,
+            powertrain: true,
+            dimensions: true,
+          },
         },
       },
     });

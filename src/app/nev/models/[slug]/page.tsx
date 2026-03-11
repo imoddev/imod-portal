@@ -4,6 +4,138 @@ import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
 
+// Extended specs interfaces (V2.0)
+interface Multimedia {
+  displaySize?: number;
+  displayType?: string;
+  appleCarPlay?: boolean;
+  androidAuto?: boolean;
+  audioSystem?: string;
+  speakerCount?: number;
+  voiceControl?: boolean;
+  navigation?: boolean;
+  wirelessCharging?: boolean;
+  wirelessChargingWatt?: number;
+  climateZones?: number;
+  rearVents?: boolean;
+  pm25Filter?: boolean;
+  usbCFront?: number;
+  usbCRear?: number;
+}
+
+interface Safety {
+  airbagsFront?: number;
+  airbagsSide?: number;
+  airbagsCurtain?: boolean;
+  camera360?: boolean;
+  parkingSensorsFront?: number;
+  parkingSensorsRear?: number;
+  esc?: boolean;
+  adaptiveCruise?: boolean;
+  autoEmergencyBrake?: boolean;
+  laneDepartureWarn?: boolean;
+  laneKeepAssist?: boolean;
+  blindSpotDetection?: boolean;
+  driverMonitoring?: boolean;
+  tpms?: boolean;
+  rearCrossTrafficAlert?: boolean;
+  autoHighBeam?: boolean;
+}
+
+interface Interior {
+  seatMaterial?: string;
+  driverSeatPower?: boolean;
+  driverSeatAdjustments?: number;
+  driverSeatVentilation?: boolean;
+  driverSeatMemory?: boolean;
+  hudDisplay?: boolean;
+  rearviewMirrorAutoDim?: boolean;
+  sideMirrorsFold?: boolean;
+  ambientLighting?: boolean;
+  ambientLightingType?: string;
+  isofixPoints?: number;
+}
+
+interface Exterior {
+  headlightsType?: string;
+  headlightsAuto?: boolean;
+  drlType?: string;
+  taillightsType?: string;
+  sunroofType?: string;
+  sunroofElectric?: boolean;
+  powerTailgate?: boolean;
+  kickSensorTailgate?: boolean;
+  doorHandlesRetractable?: boolean;
+}
+
+interface Powertrain {
+  drivetrain?: string;
+  frontMotorType?: string;
+  frontMotorKw?: number;
+  frontMotorNm?: number;
+  rearMotorType?: string;
+  rearMotorKw?: number;
+  rearMotorNm?: number;
+  totalPowerKw?: number;
+  totalTorqueNm?: number;
+  accel0100?: number;
+  topSpeedKmh?: number;
+}
+
+interface Suspension {
+  frontType?: string;
+  rearType?: string;
+  adaptiveSuspension?: string;
+}
+
+interface Brakes {
+  frontBrakeType?: string;
+  rearBrakeType?: string;
+  caliperColor?: string;
+}
+
+interface Wheels {
+  wheelSizeInch?: number;
+  wheelMaterial?: string;
+  tireSizeFront?: string;
+  tireSizeRear?: string;
+  spareTire?: boolean;
+  spareType?: string;
+}
+
+interface Battery {
+  batteryType?: string;
+  batteryKwh?: number;
+  batteryVoltage?: number;
+  batteryChemistry?: string;
+}
+
+interface Dimensions {
+  seatingCapacity?: number;
+  lengthMm?: number;
+  widthMm?: number;
+  heightMm?: number;
+  wheelbaseMm?: number;
+  groundClearanceMm?: number;
+  trunkCapacityFrontL?: number;
+  trunkCapacityRearL?: number;
+  curbWeightKg?: number;
+  gvwKg?: number;
+  turningRadiusM?: number;
+}
+
+interface EVFeatures {
+  rangeNEDC?: number;
+  rangeWLTP?: number;
+  acChargeType?: string;
+  acChargeMaxKw?: number;
+  dcChargeType?: string;
+  dcChargeMaxKw?: number;
+  dcCharge10to80Min?: number;
+  v2l?: boolean;
+  v2lAccessories?: boolean;
+}
+
 interface Variant {
   id: string;
   name: string;
@@ -36,6 +168,18 @@ interface Variant {
   warrantyVehicle: string | null;
   warrantyBattery: string | null;
   features: Record<string, string[]> | null;
+  // Extended specs V2.0
+  multimedia?: Multimedia | null;
+  safety?: Safety | null;
+  interior?: Interior | null;
+  exterior?: Exterior | null;
+  powertrain?: Powertrain | null;
+  suspension?: Suspension | null;
+  brakes?: Brakes | null;
+  wheels?: Wheels | null;
+  battery?: Battery | null;
+  dimensions?: Dimensions | null;
+  evFeatures?: EVFeatures | null;
 }
 
 interface Model {
@@ -285,69 +429,162 @@ export default function ModelDetailPage() {
               <SpecRow label="รับประกันแบตเตอรี่" value={selectedVariant.warrantyBattery || '-'} highlight />
             </SpecSection>
 
-            {/* Features - จัดกลุ่มตามหมวดหมู่แบบ BYD Brochure */}
-            {selectedVariant.features && Object.keys(selectedVariant.features).length > 0 && (
-              <>
-                {/* แยกตามหมวด */}
-                {(() => {
-                  const featureCategories = {
-                    exterior: { icon: '🚗', title: 'อุปกรณ์ภายนอก', keys: ['exterior', 'ภายนอก', 'lights', 'ไฟ'] },
-                    interior: { icon: '🛋️', title: 'อุปกรณ์ภายใน', keys: ['interior', 'ภายใน', 'seat', 'เบาะ', 'steering', 'พวงมาลัย'] },
-                    safety: { icon: '🛡️', title: 'ระบบความปลอดภัย', keys: ['safety', 'ความปลอดภัย', 'airbag', 'ถุงลม', 'sensor', 'camera'] },
-                    adas: { icon: '🎯', title: 'ระบบช่วยขับขี่ ADAS', keys: ['adas', 'assist', 'ช่วยขับขี่', 'cruise', 'lane', 'parking'] },
-                    multimedia: { icon: '🎵', title: 'มัลติมีเดียและความสะดวกสบาย', keys: ['multimedia', 'มัลติมีเดีย', 'entertainment', 'audio', 'speaker', 'screen', 'carplay'] },
-                    suspension: { icon: '🔧', title: 'ระบบช่วงล่าง', keys: ['suspension', 'ช่วงล่าง', 'brake', 'เบรก', 'wheel', 'ล้อ', 'tire', 'ยาง'] },
-                    charging: { icon: '🔌', title: 'ระบบชาร์จ', keys: ['charge', 'ชาร์จ', 'v2l', 'power'] },
-                    other: { icon: '✨', title: 'อื่นๆ', keys: [] },
-                  };
-                  
-                  const categorizedFeatures: Record<string, string[]> = {};
-                  const usedKeys = new Set<string>();
-                  
-                  // จับคู่ features กับ categories
-                  Object.entries(selectedVariant.features || {}).forEach(([key, items]) => {
-                    const lowerKey = key.toLowerCase();
-                    let matched = false;
-                    
-                    for (const [catKey, cat] of Object.entries(featureCategories)) {
-                      if (catKey === 'other') continue;
-                      if (cat.keys.some(k => lowerKey.includes(k))) {
-                        if (!categorizedFeatures[catKey]) categorizedFeatures[catKey] = [];
-                        categorizedFeatures[catKey].push(...(Array.isArray(items) ? items : [items]));
-                        usedKeys.add(key);
-                        matched = true;
-                        break;
-                      }
-                    }
-                    
-                    if (!matched) {
-                      if (!categorizedFeatures['other']) categorizedFeatures['other'] = [];
-                      categorizedFeatures['other'].push(...(Array.isArray(items) ? items : [items]));
-                    }
-                  });
-                  
-                  return Object.entries(categorizedFeatures).map(([catKey, items]) => {
-                    const cat = featureCategories[catKey as keyof typeof featureCategories];
-                    if (!items || items.length === 0) return null;
-                    
-                    return (
-                      <section key={catKey}>
-                        <h2 className="text-2xl font-bold text-white mb-6 pb-2 border-b border-slate-700 flex items-center gap-2">
-                          {cat.icon} {cat.title}
-                        </h2>
-                        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-3">
-                          {items.map((item, i) => (
-                            <div key={i} className="flex items-center gap-3 p-4 bg-slate-800/50 border border-slate-700 rounded-xl hover:border-emerald-500/30 transition-colors">
-                              <span className="text-emerald-400 flex-shrink-0">✓</span>
-                              <span className="text-slate-300 text-sm">{item}</span>
-                            </div>
-                          ))}
-                        </div>
-                      </section>
-                    );
-                  });
-                })()}
-              </>
+            {/* Extended Specs V2.0 - Powertrain */}
+            {selectedVariant.powertrain && (
+              <SpecSection title="⚙️ ระบบส่งกำลัง">
+                <SpecRow label="ระบบขับเคลื่อน" value={selectedVariant.powertrain.drivetrain || '-'} highlight />
+                {selectedVariant.powertrain.frontMotorType && (
+                  <SpecRow label="มอเตอร์หน้า" value={`${selectedVariant.powertrain.frontMotorType}${selectedVariant.powertrain.frontMotorKw ? ` (${selectedVariant.powertrain.frontMotorKw} kW / ${selectedVariant.powertrain.frontMotorNm} Nm)` : ''}`} />
+                )}
+                {selectedVariant.powertrain.rearMotorType && (
+                  <SpecRow label="มอเตอร์หลัง" value={`${selectedVariant.powertrain.rearMotorType}${selectedVariant.powertrain.rearMotorKw ? ` (${selectedVariant.powertrain.rearMotorKw} kW / ${selectedVariant.powertrain.rearMotorNm} Nm)` : ''}`} />
+                )}
+                {selectedVariant.powertrain.totalPowerKw && (
+                  <SpecRow label="กำลังรวม" value={`${selectedVariant.powertrain.totalPowerKw} kW (${Math.round(selectedVariant.powertrain.totalPowerKw * 1.341)} hp)`} highlight />
+                )}
+                {selectedVariant.powertrain.totalTorqueNm && (
+                  <SpecRow label="แรงบิดรวม" value={`${selectedVariant.powertrain.totalTorqueNm} Nm`} highlight />
+                )}
+              </SpecSection>
+            )}
+
+            {/* Suspension */}
+            {selectedVariant.suspension && (
+              <SpecSection title="🔧 ระบบกันสะเทือน">
+                <SpecRow label="ด้านหน้า" value={selectedVariant.suspension.frontType || '-'} />
+                <SpecRow label="ด้านหลัง" value={selectedVariant.suspension.rearType || '-'} />
+                {selectedVariant.suspension.adaptiveSuspension && (
+                  <SpecRow label="ระบบปรับตั้ง" value={selectedVariant.suspension.adaptiveSuspension} highlight />
+                )}
+              </SpecSection>
+            )}
+
+            {/* Brakes */}
+            {selectedVariant.brakes && (
+              <SpecSection title="🛑 ระบบเบรก">
+                <SpecRow label="เบรกหน้า" value={selectedVariant.brakes.frontBrakeType || '-'} />
+                <SpecRow label="เบรกหลัง" value={selectedVariant.brakes.rearBrakeType || '-'} />
+                {selectedVariant.brakes.caliperColor && (
+                  <SpecRow label="สีคาลิปเปอร์" value={selectedVariant.brakes.caliperColor} />
+                )}
+              </SpecSection>
+            )}
+
+            {/* Wheels & Tires */}
+            {selectedVariant.wheels && (
+              <SpecSection title="🛞 ล้อและยาง">
+                {selectedVariant.wheels.wheelSizeInch && (
+                  <SpecRow label="ขนาดล้อ" value={`${selectedVariant.wheels.wheelSizeInch} นิ้ว (${selectedVariant.wheels.wheelMaterial || 'Alloy'})`} />
+                )}
+                <SpecRow label="ยางหน้า" value={selectedVariant.wheels.tireSizeFront || '-'} />
+                <SpecRow label="ยางหลัง" value={selectedVariant.wheels.tireSizeRear || '-'} />
+                <SpecRow label="ยางอะไหล่" value={selectedVariant.wheels.spareTire ? (selectedVariant.wheels.spareType || 'มี') : 'ไม่มี'} />
+              </SpecSection>
+            )}
+
+            {/* Safety & ADAS */}
+            {selectedVariant.safety && (
+              <SpecSection title="🛡️ ระบบความปลอดภัยและ ADAS">
+                {(selectedVariant.safety.airbagsFront || selectedVariant.safety.airbagsSide) && (
+                  <SpecRow label="ถุงลมนิรภัย" value={`${(selectedVariant.safety.airbagsFront || 0) + (selectedVariant.safety.airbagsSide || 0) + (selectedVariant.safety.airbagsCurtain ? 2 : 0)} ตำแหน่ง`} highlight />
+                )}
+                <SpecRow label="กล้อง 360°" value={selectedVariant.safety.camera360 ? '✓' : '-'} />
+                <SpecRow label="เซนเซอร์ถอย" value={selectedVariant.safety.parkingSensorsRear ? `${selectedVariant.safety.parkingSensorsRear} จุด` : '-'} />
+                <SpecRow label="ESP/ESC" value={selectedVariant.safety.esc ? '✓' : '-'} />
+                <SpecRow label="Adaptive Cruise" value={selectedVariant.safety.adaptiveCruise ? '✓' : '-'} highlight />
+                <SpecRow label="เบรกฉุกเฉินอัตโนมัติ (AEB)" value={selectedVariant.safety.autoEmergencyBrake ? '✓' : '-'} highlight />
+                <SpecRow label="แจ้งเตือนออกนอกเลน (LDW)" value={selectedVariant.safety.laneDepartureWarn ? '✓' : '-'} />
+                <SpecRow label="ช่วยรักษาเลน (LKA)" value={selectedVariant.safety.laneKeepAssist ? '✓' : '-'} />
+                <SpecRow label="จุดบอด (BSD)" value={selectedVariant.safety.blindSpotDetection ? '✓' : '-'} />
+                <SpecRow label="ระบบเตือนข้ามหลัง (RCTA)" value={selectedVariant.safety.rearCrossTrafficAlert ? '✓' : '-'} />
+                <SpecRow label="ไฟสูงอัตโนมัติ" value={selectedVariant.safety.autoHighBeam ? '✓' : '-'} />
+                <SpecRow label="ตรวจจับคนขับ (DMS)" value={selectedVariant.safety.driverMonitoring ? '✓' : '-'} />
+                <SpecRow label="TPMS" value={selectedVariant.safety.tpms ? '✓' : '-'} />
+              </SpecSection>
+            )}
+
+            {/* Multimedia */}
+            {selectedVariant.multimedia && (
+              <SpecSection title="🎵 มัลติมีเดียและความสะดวกสบาย">
+                {selectedVariant.multimedia.displaySize && (
+                  <SpecRow label="หน้าจอ" value={`${selectedVariant.multimedia.displaySize}" ${selectedVariant.multimedia.displayType || ''}`} highlight />
+                )}
+                <SpecRow label="Apple CarPlay" value={selectedVariant.multimedia.appleCarPlay ? '✓' : '-'} />
+                <SpecRow label="Android Auto" value={selectedVariant.multimedia.androidAuto ? '✓' : '-'} />
+                {selectedVariant.multimedia.audioSystem && (
+                  <SpecRow label="ระบบเสียง" value={`${selectedVariant.multimedia.audioSystem}${selectedVariant.multimedia.speakerCount ? ` (${selectedVariant.multimedia.speakerCount} ลำโพง)` : ''}`} />
+                )}
+                <SpecRow label="สั่งงานเสียง" value={selectedVariant.multimedia.voiceControl ? '✓' : '-'} />
+                <SpecRow label="ระบบนำทาง" value={selectedVariant.multimedia.navigation ? '✓' : '-'} />
+                {selectedVariant.multimedia.wirelessCharging && (
+                  <SpecRow label="ชาร์จไร้สาย" value={selectedVariant.multimedia.wirelessChargingWatt ? `${selectedVariant.multimedia.wirelessChargingWatt}W` : '✓'} />
+                )}
+                {selectedVariant.multimedia.climateZones && (
+                  <SpecRow label="แอร์" value={`${selectedVariant.multimedia.climateZones} โซน${selectedVariant.multimedia.rearVents ? ' + ช่องแอร์หลัง' : ''}`} />
+                )}
+                <SpecRow label="กรอง PM2.5" value={selectedVariant.multimedia.pm25Filter ? '✓' : '-'} />
+              </SpecSection>
+            )}
+
+            {/* Interior */}
+            {selectedVariant.interior && (
+              <SpecSection title="🛋️ อุปกรณ์ภายใน">
+                {selectedVariant.interior.seatMaterial && (
+                  <SpecRow label="วัสดุเบาะ" value={selectedVariant.interior.seatMaterial} highlight />
+                )}
+                <SpecRow label="เบาะคนขับไฟฟ้า" value={selectedVariant.interior.driverSeatPower ? `${selectedVariant.interior.driverSeatAdjustments || ''} ทิศทาง` : '-'} />
+                <SpecRow label="เบาะระบายอากาศ" value={selectedVariant.interior.driverSeatVentilation ? '✓' : '-'} />
+                <SpecRow label="Memory Seat" value={selectedVariant.interior.driverSeatMemory ? '✓' : '-'} />
+                <SpecRow label="HUD" value={selectedVariant.interior.hudDisplay ? '✓' : '-'} highlight />
+                <SpecRow label="กระจกมองหลังตัดแสงอัตโนมัติ" value={selectedVariant.interior.rearviewMirrorAutoDim ? '✓' : '-'} />
+                <SpecRow label="กระจกข้างพับอัตโนมัติ" value={selectedVariant.interior.sideMirrorsFold ? '✓' : '-'} />
+                {selectedVariant.interior.ambientLighting && (
+                  <SpecRow label="ไฟ Ambient" value={selectedVariant.interior.ambientLightingType || '✓'} />
+                )}
+                {selectedVariant.interior.isofixPoints && (
+                  <SpecRow label="ISOFIX" value={`${selectedVariant.interior.isofixPoints} จุด`} />
+                )}
+              </SpecSection>
+            )}
+
+            {/* Exterior */}
+            {selectedVariant.exterior && (
+              <SpecSection title="🚗 อุปกรณ์ภายนอก">
+                {selectedVariant.exterior.headlightsType && (
+                  <SpecRow label="ไฟหน้า" value={`${selectedVariant.exterior.headlightsType}${selectedVariant.exterior.headlightsAuto ? ' (Auto)' : ''}`} highlight />
+                )}
+                {selectedVariant.exterior.drlType && (
+                  <SpecRow label="ไฟกลางวัน (DRL)" value={selectedVariant.exterior.drlType} />
+                )}
+                {selectedVariant.exterior.taillightsType && (
+                  <SpecRow label="ไฟท้าย" value={selectedVariant.exterior.taillightsType} />
+                )}
+                {selectedVariant.exterior.sunroofType && (
+                  <SpecRow label="ซันรูฟ" value={`${selectedVariant.exterior.sunroofType}${selectedVariant.exterior.sunroofElectric ? ' (ไฟฟ้า)' : ''}`} highlight />
+                )}
+                <SpecRow label="ประตูท้ายไฟฟ้า" value={selectedVariant.exterior.powerTailgate ? '✓' : '-'} />
+                <SpecRow label="เซนเซอร์เตะเปิด" value={selectedVariant.exterior.kickSensorTailgate ? '✓' : '-'} />
+                <SpecRow label="มือจับประตูซ่อน" value={selectedVariant.exterior.doorHandlesRetractable ? '✓' : '-'} />
+              </SpecSection>
+            )}
+
+            {/* Legacy Features (fallback) */}
+            {selectedVariant.features && Object.keys(selectedVariant.features).length > 0 && !selectedVariant.multimedia && (
+              <section>
+                <h2 className="text-2xl font-bold text-white mb-6 pb-2 border-b border-slate-700 flex items-center gap-2">
+                  ✨ ฟีเจอร์เพิ่มเติม
+                </h2>
+                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {Object.entries(selectedVariant.features).flatMap(([, items]) => 
+                    (Array.isArray(items) ? items : [items]).map((item, i) => (
+                      <div key={i} className="flex items-center gap-3 p-4 bg-slate-800/50 border border-slate-700 rounded-xl">
+                        <span className="text-emerald-400">✓</span>
+                        <span className="text-slate-300 text-sm">{item}</span>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </section>
             )}
           </div>
 
