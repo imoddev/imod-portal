@@ -23,6 +23,7 @@ interface Stats {
 export default function NevAdminDashboard() {
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
+  const [version, setVersion] = useState('');
 
   useEffect(() => {
     fetch('/api/nev/stats')
@@ -35,6 +36,11 @@ export default function NevAdminDashboard() {
         console.error('Error loading stats:', err);
         setLoading(false);
       });
+    
+    fetch('/api/nev/version')
+      .then(r => r.json())
+      .then(data => setVersion(data.version))
+      .catch(() => {});
   }, []);
 
   if (loading) {
@@ -169,6 +175,11 @@ export default function NevAdminDashboard() {
           <div className="text-gray-600">
             อัปเดตล่าสุด: {stats?.lastUpdated ? new Date(stats.lastUpdated).toLocaleString('th-TH') : '-'}
           </div>
+        </div>
+
+        {/* Version Footer */}
+        <div className="mt-4 text-center text-sm text-gray-500">
+          NEV Database Admin v{version || '1.0.0'} • {new Date().toLocaleDateString('th-TH')}
         </div>
       </main>
     </div>
