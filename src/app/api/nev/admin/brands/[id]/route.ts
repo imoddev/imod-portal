@@ -67,8 +67,9 @@ export async function PUT(
     // Audit log
     await createAuditLog({
       action: 'UPDATE',
-      entityType: 'BRAND',
-      entityId: brand.id,
+      targetType: 'BRAND',
+      targetId: brand.id,
+      targetName: brand.name,
       userName: 'Admin',
       changes: { before: existing, after: brand },
     });
@@ -113,8 +114,9 @@ export async function DELETE(
     // Audit log
     await createAuditLog({
       action: 'DELETE',
-      entityType: 'BRAND',
-      entityId: id,
+      targetType: 'BRAND',
+      targetId: id,
+      targetName: existing.name,
       userName: 'Admin',
       changes: existing,
     });

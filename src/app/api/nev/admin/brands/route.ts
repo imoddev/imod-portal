@@ -78,8 +78,9 @@ export async function POST(request: NextRequest) {
     // Audit log
     await createAuditLog({
       action: 'CREATE',
-      entityType: 'BRAND',
-      entityId: brand.id,
+      targetType: 'BRAND',
+      targetId: brand.id,
+      targetName: brand.name,
       userName: 'Admin', // TODO: Get from auth
       changes: brand,
     });
