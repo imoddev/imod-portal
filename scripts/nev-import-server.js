@@ -130,6 +130,9 @@ app.post('/nev/import', upload.array('files', 10), async (req, res) => {
     
     console.log(`[NEV Import] Metadata saved: ${finalDir}/metadata.json`);
     
+    // Save activity log
+    saveActivityLog(finalBatchId, metadata);
+    
     // Trigger AI worker (async)
     triggerAIWorker(finalBatchId).catch(err => {
       console.error(`[NEV Import] Worker error:`, err);
@@ -147,6 +150,44 @@ app.post('/nev/import', upload.array('files', 10), async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
+// Save Activity Log
+function saveActivityLog(batchId, metadata) {
+  const activityFile = path.join(UPLOAD_DIR, 'activity.json');
+  
+  let activities = [];
+  if (fs.existsSync(activityFile)) {
+    try {
+      activities = JSON.parse(fs.readFileSync(activityFile, 'utf8'));
+    } catch (err) {
+      console.error('[Activity Log] Failed to read existing log:', err);
+      activities = [];
+    }
+  }
+  
+  // Add new activity
+  const activity = {
+    type: 'NEW_FOLDER',
+    folder: batchId,
+    timestamp: new Date().toISOString(),
+    files: metadata.fileCount,
+    totalSize: metadata.totalSize,
+    brand: metadata.manualInfo.brand,
+    model: metadata.manualInfo.model,
+    variant: metadata.manualInfo.variant,
+    status: 'pending_parse'
+  };
+  
+  activities.unshift(activity); // Add to beginning
+  
+  // Keep last 100 activities
+  if (activities.length > 100) {
+    activities = activities.slice(0, 100);
+  }
+  
+  fs.writeFileSync(activityFile, JSON.stringify(activities, null, 2));
+  console.log(`[Activity Log] Saved: [New] ${batchId}`);
+}
 
 // Trigger AI Worker
 function triggerAIWorker(batchId) {
