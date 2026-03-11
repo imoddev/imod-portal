@@ -21,11 +21,15 @@ interface Stats {
 }
 
 interface Activity {
-  id: string;
-  description: string;
-  userName: string;
-  createdAt: string;
-  link: string | null;
+  type: string;
+  folder: string;
+  timestamp: string;
+  files: number;
+  totalSize: number;
+  brand: string;
+  model: string;
+  variant: string | null;
+  status: string;
 }
 
 export default function NevAdminDashboard() {
@@ -223,35 +227,41 @@ export default function NevAdminDashboard() {
             </div>
           ) : (
             <div className="space-y-3">
-              {activities.map((activity) => (
+              {activities.map((activity, index) => (
                 <div
-                  key={activity.id}
+                  key={activity.folder || index}
                   className="flex items-start gap-4 p-4 bg-slate-700/50 rounded-xl hover:bg-slate-700 transition-all border border-slate-600/50"
                 >
                   <div className="w-10 h-10 bg-emerald-500/20 rounded-xl flex items-center justify-center text-xl flex-shrink-0">
-                    📝
+                    {activity.type === 'NEW_FOLDER' ? '📁' : '📝'}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-white font-medium">{activity.description}</p>
-                    <div className="flex items-center gap-2 mt-1">
-                      <span className="text-sm text-slate-400">👤 {activity.userName || 'ระบบ'}</span>
+                    <p className="text-white font-medium">
+                      {activity.type === 'NEW_FOLDER' ? 'อัปโหลดข้อมูลใหม่: ' : ''}
+                      {activity.brand} {activity.model} {activity.variant || ''}
+                    </p>
+                    <div className="flex items-center gap-2 mt-1 flex-wrap">
+                      <span className="text-sm text-slate-400">📄 {activity.files} ไฟล์</span>
                       <span className="text-slate-600">•</span>
                       <span className="text-sm text-slate-400">
-                        {new Date(activity.createdAt).toLocaleString('th-TH', {
+                        {(activity.totalSize / 1024 / 1024).toFixed(2)} MB
+                      </span>
+                      <span className="text-slate-600">•</span>
+                      <span className="text-sm text-slate-400">
+                        {new Date(activity.timestamp).toLocaleString('th-TH', {
                           dateStyle: 'medium',
                           timeStyle: 'short',
                         })}
                       </span>
+                      <span className={`px-2 py-0.5 text-xs rounded-full ${
+                        activity.status === 'pending_parse' 
+                          ? 'bg-amber-500/20 text-amber-400' 
+                          : 'bg-emerald-500/20 text-emerald-400'
+                      }`}>
+                        {activity.status === 'pending_parse' ? 'รอประมวลผล' : activity.status}
+                      </span>
                     </div>
                   </div>
-                  {activity.link && (
-                    <Link
-                      href={activity.link}
-                      className="px-4 py-2 text-sm bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 transition-all flex-shrink-0 font-medium"
-                    >
-                      ดูรายละเอียด
-                    </Link>
-                  )}
                 </div>
               ))}
             </div>
