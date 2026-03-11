@@ -171,7 +171,7 @@ export default function BrandDetailPage() {
               <p className="text-xl text-slate-400">ยังไม่มีข้อมูลรถของแบรนด์นี้</p>
             </div>
           ) : (
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="flex flex-wrap justify-center gap-6">
               {models.map((model) => {
                 const startingPrice = getStartingPrice(model);
                 const firstVariant = getFirstVariant(model);
@@ -180,7 +180,7 @@ export default function BrandDetailPage() {
                   <Link
                     key={model.id}
                     href={`/nev/models/${model.slug}`}
-                    className="group bg-slate-800/50 backdrop-blur-sm rounded-2xl overflow-hidden border border-slate-700 hover:border-emerald-500/50 transition-all hover:shadow-xl hover:shadow-emerald-500/10"
+                    className="group bg-slate-800/50 backdrop-blur-sm rounded-2xl overflow-hidden border border-slate-700 hover:border-emerald-500/50 transition-all hover:shadow-xl hover:shadow-emerald-500/10 w-full sm:w-[calc(50%-12px)] lg:w-[calc(33.333%-16px)] max-w-md"
                   >
                     {/* Image */}
                     <div className="aspect-video bg-slate-700/50 relative overflow-hidden">
