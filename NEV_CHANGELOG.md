@@ -2,6 +2,38 @@
 
 All notable changes to the NEV Database system will be documented in this file.
 
+## [1.4.0] - 2026-03-11 20:30 (Asia/Bangkok)
+
+### Discord Thread Progress Updates 📊
+
+**Added:**
+- **Discord Thread per Import** (เหมือน Long to Short)
+  - สร้าง thread ใหม่ทุกครั้งใน channel `1478707742603612241`
+  - Thread name: `🚗 NEV Import: batch-{timestamp}`
+  
+- **Step-by-Step Progress:**
+  1. ✅ 1/6 อัปโหลดไฟล์เสร็จ (X ไฟล์, Y MB)
+  2. 🔄 2/6 กำลัง parse ไฟล์ (1/X, 2/X, ...)
+  3. ✅ 3/6 AI extract specs เสร็จ
+  4. ✅ 4/6 Merge specs เสร็จ
+  5. 🔄 5/6 กำลังบันทึกลง database
+  6. ✅ 6/6 เสร็จสิ้น! (พร้อม link ไปดูรถ)
+  
+- **Final Message:**
+  - รายละเอียดรถ: Brand, Model, Variant
+  - ราคา, แบตเตอรี่, ระยะทาง
+  - Link: `/nev/admin/variants/{id}`
+  - ใช้เวลา: X วินาที
+
+**Changed:**
+- ไม่ส่ง DM อีกต่อไป → ใช้ thread แทน
+- Real-time updates ระหว่าง processing
+
+**Benefit:**
+- ดู progress ได้แบบ real-time
+- ไม่ต้องรอเสร็จถึงรู้ว่าทำอะไรอยู่
+- Thread ไม่รบกวน channel หลัก
+
 ## [1.3.0] - 2026-03-11 19:55 (Asia/Bangkok)
 
 ### Architecture Change 🏗️
