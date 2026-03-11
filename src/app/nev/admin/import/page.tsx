@@ -94,12 +94,32 @@ export default function ImportDataPage() {
     const formData = new FormData();
     files.forEach(file => formData.append('files', file));
     
-    if (manualInfo.brand) formData.append('brand', manualInfo.brand);
-    if (manualInfo.model) formData.append('model', manualInfo.model);
-    if (manualInfo.variant) formData.append('variant', manualInfo.variant);
+    // ✅ Fix: Check before append - don't send if empty/undefined
+    if (manualInfo.brand && manualInfo.brand.trim()) {
+      formData.append('brand', manualInfo.brand.trim());
+    } else {
+      console.warn('Brand is empty - folder will use batch-timestamp');
+    }
+    
+    if (manualInfo.model && manualInfo.model.trim()) {
+      formData.append('model', manualInfo.model.trim());
+    }
+    
+    if (manualInfo.variant && manualInfo.variant.trim()) {
+      formData.append('variant', manualInfo.variant.trim());
+    }
+    
     if (existingBatchId && existingBatchId !== 'placeholder') {
       formData.append('existingBatchId', existingBatchId);
     }
+    
+    // Debug log before sending
+    console.log('Sending to Mac Studio:', {
+      brand: manualInfo.brand?.trim() || '(empty)',
+      model: manualInfo.model?.trim() || '(empty)',
+      variant: manualInfo.variant?.trim() || '(empty)',
+      fileCount: files.length
+    });
     
     try {
       setProgress('กำลังส่งไฟล์ไปยังเซิร์ฟเวอร์...');
