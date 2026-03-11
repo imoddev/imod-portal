@@ -60,19 +60,29 @@ export async function parseExcel(filePath: string): Promise<any> {
  * Extract vehicle specs with AI (GLM-5)
  */
 export async function extractSpecsWithAI(text: string): Promise<any> {
-  // Call GLM-5 API to extract structured data
-  const response = await fetch('https://open.bigmodel.cn/api/paas/v4/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${process.env.GLM_API_KEY}`,
-    },
-    body: JSON.stringify({
-      model: 'glm-4',
-      messages: [
-        {
-          role: 'system',
-          content: `You are a vehicle specification extractor. Extract the following fields from the given text:
+  // Check API key
+  if (!process.env.GLM_API_KEY) {
+    console.warn('[Import] GLM_API_KEY not set');
+    return { error: 'GLM API key not configured' };
+  }
+  
+  // Truncate text if too long (max 10000 chars to avoid token limits)
+  const truncatedText = text.length > 10000 ? text.substring(0, 10000) + '...' : text;
+  
+  try {
+    // Call GLM-5 API to extract structured data
+    const response = await fetch('https://open.bigmodel.cn/api/paas/v4/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${process.env.GLM_API_KEY}`,
+      },
+      body: JSON.stringify({
+        model: 'glm-4',
+        messages: [
+          {
+            role: 'system',
+            content: `You are a vehicle specification extractor. Extract the following fields from the given text:
 - brand: Brand name
 - model: Model name
 - variant: Variant name
@@ -93,22 +103,41 @@ export async function extractSpecsWithAI(text: string): Promise<any> {
 - curbWeightKg: Curb weight in kg (number)
 
 Return ONLY a JSON object with these fields. Use null for missing values.`,
-        },
-        {
-          role: 'user',
-          content: text,
-        },
-      ],
-      temperature: 0.1,
-    }),
-  });
+          },
+          {
+            role: 'user',
+            content: truncatedText,
+          },
+        ],
+        temperature: 0.1,
+      }),
+    });
 
-  const result = await response.json();
-  const content = result.choices[0].message.content;
-  
-  try {
-    return JSON.parse(content);
-  } catch {
-    return { error: 'Failed to parse AI response' };
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('[Import] GLM API error:', response.status, errorText);
+      return { error: `GLM API error: ${response.status}` };
+    }
+
+    const result = await response.json();
+    const content = result.choices?.[0]?.message?.content;
+    
+    if (!content) {
+      return { error: 'No AI response' };
+    }
+    
+    try {
+      return JSON.parse(content);
+    } catch {
+      // Try to extract JSON from markdown code block
+      const match = content.match(/```json\n([\s\S]+?)\n```/);
+      if (match) {
+        return JSON.parse(match[1]);
+      }
+      return { error: 'Failed to parse AI response' };
+    }
+  } catch (err: any) {
+    console.error('[Import] extractSpecsWithAI error:', err);
+    return { error: err.message || 'Unknown error' };
   }
 }

@@ -38,6 +38,15 @@ export default function ImportDataPage() {
       return;
     }
     
+    // Check total file size (max 50MB)
+    const totalSize = files.reduce((sum, f) => sum + f.size, 0);
+    const maxSize = 50 * 1024 * 1024; // 50MB
+    
+    if (totalSize > maxSize) {
+      alert(`ไฟล์รวมใหญ่เกินไป (${(totalSize / 1024 / 1024).toFixed(1)} MB)\nสูงสุด 50 MB`);
+      return;
+    }
+    
     setLoading(true);
     setProgress('กำลังอัปโหลดไฟล์...');
     
@@ -45,15 +54,23 @@ export default function ImportDataPage() {
     files.forEach(file => formData.append('files', file));
     
     try {
+      setProgress('กำลังส่งไฟล์ไปยังเซิร์ฟเวอร์...');
+      
       const res = await fetch('/api/nev/admin/import/batch', {
         method: 'POST',
         body: formData,
       });
       
+      setProgress('กำลังประมวลผลข้อมูล...');
+      
       const data = await res.json();
       
+      console.log('API Response:', res.status, data);
+      
       if (!res.ok) {
-        alert(data.error || 'เกิดข้อผิดพลาด');
+        const errorMsg = data.error || data.details || 'เกิดข้อผิดพลาด';
+        console.error('Import error:', errorMsg);
+        alert(`❌ Import ไม่สำเร็จ\n\n${errorMsg}`);
         setLoading(false);
         setProgress('');
         return;
@@ -61,9 +78,9 @@ export default function ImportDataPage() {
       
       setPreview(data);
       setProgress('');
-    } catch (err) {
-      console.error(err);
-      alert('เกิดข้อผิดพลาด');
+    } catch (err: any) {
+      console.error('Import error:', err);
+      alert(`❌ เกิดข้อผิดพลาด\n\n${err.message || err}`);
       setProgress('');
     } finally {
       setLoading(false);
