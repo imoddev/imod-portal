@@ -36,6 +36,24 @@ export async function POST(request: NextRequest) {
     macStudioFormData.append('batchId', batchId);
     macStudioFormData.append('userId', 'vercel-upload');
     
+    // ✅ Forward brand/model/variant if provided
+    const brand = formData.get('brand');
+    const model = formData.get('model');
+    const variant = formData.get('variant');
+    
+    if (brand) {
+      macStudioFormData.append('brand', brand as string);
+      console.log('[Batch Import] Brand:', brand);
+    }
+    if (model) {
+      macStudioFormData.append('model', model as string);
+      console.log('[Batch Import] Model:', model);
+    }
+    if (variant) {
+      macStudioFormData.append('variant', variant as string);
+      console.log('[Batch Import] Variant:', variant);
+    }
+    
     // Add all files
     for (const file of files) {
       macStudioFormData.append('files', file);
