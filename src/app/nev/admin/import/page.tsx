@@ -183,14 +183,61 @@ export default function ImportDataPage() {
           <div className="max-w-4xl">
             <div className="bg-white rounded-xl shadow-sm p-6 mb-6">
               <h2 className="text-lg font-semibold mb-4">ตรวจสอบข้อมูล</h2>
-              <pre className="bg-gray-50 p-4 rounded-lg overflow-auto">
-                {JSON.stringify(preview, null, 2)}
-              </pre>
+              
+              {preview.data?.specs ? (
+                <div className="space-y-4">
+                  <div className="grid md:grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-sm text-gray-600">แบรนด์</p>
+                      <p className="font-medium">{preview.data.specs.brand || '-'}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-600">รุ่น</p>
+                      <p className="font-medium">{preview.data.specs.model || '-'}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-600">รุ่นย่อย</p>
+                      <p className="font-medium">{preview.data.specs.variant || '-'}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-600">ราคา</p>
+                      <p className="font-medium">{preview.data.specs.priceBaht ? `฿${preview.data.specs.priceBaht.toLocaleString()}` : '-'}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-600">แบตเตอรี่</p>
+                      <p className="font-medium">{preview.data.specs.batteryKwh ? `${preview.data.specs.batteryKwh} kWh` : '-'}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-600">ระยะทาง</p>
+                      <p className="font-medium">{preview.data.specs.rangeKm ? `${preview.data.specs.rangeKm} km` : '-'}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-600">แรงม้า</p>
+                      <p className="font-medium">{preview.data.specs.motorHp ? `${preview.data.specs.motorHp} hp` : '-'}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-600">ระบบขับเคลื่อน</p>
+                      <p className="font-medium">{preview.data.specs.drivetrain || '-'}</p>
+                    </div>
+                  </div>
+                  
+                  <details className="mt-4">
+                    <summary className="cursor-pointer text-sm text-gray-600">ดูข้อมูลทั้งหมด (JSON)</summary>
+                    <pre className="mt-2 bg-gray-50 p-4 rounded-lg overflow-auto text-xs">
+                      {JSON.stringify(preview, null, 2)}
+                    </pre>
+                  </details>
+                </div>
+              ) : (
+                <pre className="bg-gray-50 p-4 rounded-lg overflow-auto">
+                  {JSON.stringify(preview, null, 2)}
+                </pre>
+              )}
             </div>
             <div className="flex gap-4">
               <button
                 onClick={handleConfirm}
-                disabled={loading}
+                disabled={loading || !preview.data?.specs}
                 className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50"
               >
                 {loading ? 'กำลังบันทึก...' : 'ยืนยัน'}

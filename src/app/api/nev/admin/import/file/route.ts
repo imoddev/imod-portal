@@ -1,6 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { writeFile } from 'fs/promises';
 import { join } from 'path';
+import {
+  parsePDF,
+  parseDOCX,
+  parseExcel,
+  extractSpecsWithAI,
+  convertToWebP,
+} from '@/lib/nev-import-helpers';
 
 export async function POST(request: NextRequest) {
   try {
@@ -20,17 +27,31 @@ export async function POST(request: NextRequest) {
     
     const fileType = file.type;
     let data: any = {};
+    let extractedText = '';
 
     if (fileType.includes('pdf')) {
-      data = { type: 'pdf', message: 'PDF parsing not implemented yet' };
+      const pdfData = await parsePDF(tempPath);
+      extractedText = pdfData.text;
+      data = { type: 'pdf', numPages: pdfData.numPages, extractedText };
     } else if (fileType.includes('word') || fileType.includes('document')) {
-      data = { type: 'doc', message: 'DOC parsing not implemented yet' };
+      const docData = await parseDOCX(tempPath);
+      extractedText = docData.text;
+      data = { type: 'doc', extractedText };
     } else if (fileType.includes('spreadsheet') || fileType.includes('excel')) {
-      data = { type: 'excel', message: 'Excel parsing not implemented yet' };
+      const excelData = await parseExcel(tempPath);
+      data = { type: 'excel', ...excelData };
     } else if (fileType.includes('image')) {
-      data = { type: 'image', message: 'Image parsing not implemented yet' };
+      const webpPath = tempPath.replace(/\.(jpg|jpeg|png)$/i, '.webp');
+      await convertToWebP(tempPath, webpPath);
+      data = { type: 'image', webpPath, message: 'Image converted to WebP' };
     } else {
       data = { type: 'unknown', message: 'Unsupported file type' };
+    }
+
+    // Extract specs with AI if we have text
+    if (extractedText) {
+      const specs = await extractSpecsWithAI(extractedText);
+      data.specs = specs;
     }
 
     return NextResponse.json({
