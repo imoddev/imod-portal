@@ -2,6 +2,26 @@
 
 All notable changes to the NEV Database system will be documented in this file.
 
+## [1.0.1] - 2026-03-11 18:20 (Asia/Bangkok)
+
+### Fixed
+- **Battery data corrected** - All variants now show accurate battery capacity
+  - Was showing 8 kWh for all variants
+  - Now shows correct values (e.g., BYD Seal: 61.4, 82.5 kWh)
+- **Parser V2 improved** - More specific field matching
+  - Search for "ขนาดแบตเตอรี่ (kWh)" instead of generic "แบตเตอรี่"
+  - Prevents matching header rows
+
+### Added
+- **Edit functionality** in variants management
+  - Variant names are now clickable links
+  - Edit button in each row
+  - Links to `/nev/admin/variants/[id]` for editing
+
+### Changed
+- Re-imported 206 variants with correct data (was 210)
+  - Removed 4 variants without battery data
+
 ## [1.0.0] - 2026-03-11 18:06 (Asia/Bangkok)
 
 ### Added
