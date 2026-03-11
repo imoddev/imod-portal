@@ -1,8 +1,183 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+
+// Types
+interface Brand {
+  id: string;
+  name: string;
+  nameTh?: string;
+  _count?: { models: number };
+}
+
+interface Model {
+  id: string;
+  name: string;
+  nameTh?: string;
+  brandId: string;
+  variants?: Variant[];
+}
+
+interface Variant {
+  id: string;
+  name: string;
+  modelId: string;
+}
+
+// Searchable Dropdown Component
+function SearchableDropdown({
+  label,
+  placeholder,
+  options,
+  value,
+  onChange,
+  disabled,
+  loading: loadingOptions,
+}: {
+  label: string;
+  placeholder: string;
+  options: { value: string; label: string }[];
+  value: string;
+  onChange: (value: string) => void;
+  disabled?: boolean;
+  loading?: boolean;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [search, setSearch] = useState('');
+  const [isCustom, setIsCustom] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Filter options based on search
+  const filteredOptions = options.filter(opt =>
+    opt.label.toLowerCase().includes(search.toLowerCase())
+  );
+
+  const handleSelect = (val: string) => {
+    onChange(val);
+    setSearch('');
+    setIsOpen(false);
+    setIsCustom(false);
+  };
+
+  const handleCustomInput = () => {
+    setIsCustom(true);
+    setIsOpen(false);
+    onChange('');
+  };
+
+  const displayValue = value || '';
+
+  return (
+    <div className="relative" ref={dropdownRef}>
+      <label className="block text-sm text-slate-400 mb-2">{label}</label>
+      
+      {isCustom ? (
+        <div className="flex gap-2">
+          <input
+            type="text"
+            placeholder={`พิมพ์${label}ใหม่...`}
+            value={value}
+            onChange={e => onChange(e.target.value)}
+            className="flex-1 px-4 py-3 bg-slate-700/50 border border-emerald-500 rounded-xl text-white placeholder-slate-500 focus:outline-none"
+            autoFocus
+          />
+          <button
+            onClick={() => {
+              setIsCustom(false);
+              onChange('');
+            }}
+            className="px-3 py-2 bg-slate-700 text-slate-400 rounded-xl hover:bg-slate-600"
+          >
+            ✕
+          </button>
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={() => !disabled && setIsOpen(!isOpen)}
+          disabled={disabled}
+          className={`w-full px-4 py-3 bg-slate-700/50 border rounded-xl text-left flex items-center justify-between transition-colors ${
+            disabled
+              ? 'border-slate-700 text-slate-600 cursor-not-allowed'
+              : isOpen
+              ? 'border-emerald-500 text-white'
+              : 'border-slate-600 text-white hover:border-slate-500'
+          }`}
+        >
+          <span className={displayValue ? 'text-white' : 'text-slate-500'}>
+            {displayValue || placeholder}
+          </span>
+          <span className="text-slate-400">{isOpen ? '▲' : '▼'}</span>
+        </button>
+      )}
+
+      {isOpen && !isCustom && (
+        <div className="absolute z-50 w-full mt-2 bg-slate-800 border border-slate-600 rounded-xl shadow-xl overflow-hidden">
+          {/* Search input */}
+          <div className="p-2 border-b border-slate-700">
+            <input
+              type="text"
+              placeholder="ค้นหา..."
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              className="w-full px-3 py-2 bg-slate-700/50 border border-slate-600 rounded-lg text-white placeholder-slate-500 focus:border-emerald-500 focus:outline-none text-sm"
+              autoFocus
+            />
+          </div>
+
+          {/* Options list */}
+          <div className="max-h-48 overflow-y-auto">
+            {loadingOptions ? (
+              <div className="px-4 py-3 text-slate-400 text-sm text-center">
+                กำลังโหลด...
+              </div>
+            ) : filteredOptions.length > 0 ? (
+              filteredOptions.map(opt => (
+                <button
+                  key={opt.value}
+                  onClick={() => handleSelect(opt.value)}
+                  className={`w-full px-4 py-3 text-left hover:bg-slate-700 transition-colors ${
+                    value === opt.value ? 'bg-emerald-500/20 text-emerald-400' : 'text-white'
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))
+            ) : (
+              <div className="px-4 py-3 text-slate-400 text-sm text-center">
+                ไม่พบข้อมูล
+              </div>
+            )}
+          </div>
+
+          {/* Add new option */}
+          <div className="border-t border-slate-700">
+            <button
+              onClick={handleCustomInput}
+              className="w-full px-4 py-3 text-left text-emerald-400 hover:bg-emerald-500/10 flex items-center gap-2"
+            >
+              <span>➕</span>
+              <span>เพิ่ม{label}ใหม่</span>
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function ImportDataPage() {
   const router = useRouter();
@@ -13,7 +188,17 @@ export default function ImportDataPage() {
   const [progress, setProgress] = useState('');
   const [dragActive, setDragActive] = useState(false);
   
-  // Optional manual info
+  // Brand/Model/Variant data from API
+  const [brands, setBrands] = useState<Brand[]>([]);
+  const [models, setModels] = useState<Model[]>([]);
+  const [loadingBrands, setLoadingBrands] = useState(false);
+  const [loadingModels, setLoadingModels] = useState(false);
+  
+  // Selected values
+  const [selectedBrandId, setSelectedBrandId] = useState('');
+  const [selectedModelId, setSelectedModelId] = useState('');
+  
+  // Manual info (for custom input or variant)
   const [manualInfo, setManualInfo] = useState({
     brand: '',
     model: '',
@@ -22,6 +207,80 @@ export default function ImportDataPage() {
   
   // Re-upload option
   const [existingBatchId, setExistingBatchId] = useState('');
+
+  // Fetch brands on mount
+  useEffect(() => {
+    const fetchBrands = async () => {
+      setLoadingBrands(true);
+      try {
+        const res = await fetch('/api/nev/brands');
+        const data = await res.json();
+        setBrands(data.brands || []);
+      } catch (err) {
+        console.error('Failed to fetch brands:', err);
+      } finally {
+        setLoadingBrands(false);
+      }
+    };
+    fetchBrands();
+  }, []);
+
+  // Fetch models when brand is selected
+  useEffect(() => {
+    if (!selectedBrandId) {
+      setModels([]);
+      return;
+    }
+    
+    const fetchModels = async () => {
+      setLoadingModels(true);
+      try {
+        const res = await fetch(`/api/nev/models?brandId=${selectedBrandId}`);
+        const data = await res.json();
+        setModels(data.models || []);
+      } catch (err) {
+        console.error('Failed to fetch models:', err);
+      } finally {
+        setLoadingModels(false);
+      }
+    };
+    fetchModels();
+  }, [selectedBrandId]);
+
+  // Handle brand selection
+  const handleBrandChange = (value: string) => {
+    // Check if it's a brand ID or custom text
+    const brand = brands.find(b => b.id === value);
+    if (brand) {
+      setSelectedBrandId(brand.id);
+      setManualInfo(prev => ({ ...prev, brand: brand.name }));
+    } else {
+      // Custom input
+      setSelectedBrandId('');
+      setManualInfo(prev => ({ ...prev, brand: value }));
+    }
+    // Reset model and variant
+    setSelectedModelId('');
+    setManualInfo(prev => ({ ...prev, model: '', variant: '' }));
+  };
+
+  // Handle model selection
+  const handleModelChange = (value: string) => {
+    const model = models.find(m => m.id === value);
+    if (model) {
+      setSelectedModelId(model.id);
+      setManualInfo(prev => ({ ...prev, model: model.name }));
+    } else {
+      setSelectedModelId('');
+      setManualInfo(prev => ({ ...prev, model: value }));
+    }
+    // Reset variant
+    setManualInfo(prev => ({ ...prev, variant: '' }));
+  };
+
+  // Get variants from selected model
+  const currentModel = models.find(m => m.id === selectedModelId);
+  const variants = currentModel?.variants || [];
 
   const handleDrag = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -305,7 +564,7 @@ export default function ImportDataPage() {
                 </div>
               )}
 
-              {/* Optional Info */}
+              {/* Optional Info - Dropdowns */}
               <div className="bg-slate-800/50 backdrop-blur-sm rounded-2xl p-6 border border-slate-700">
                 <h3 className="text-white font-semibold mb-4 flex items-center gap-2">
                   <span>📝</span>
@@ -314,41 +573,66 @@ export default function ImportDataPage() {
                 </h3>
                 
                 <div className="grid md:grid-cols-3 gap-4">
-                  <div>
-                    <label className="block text-sm text-slate-400 mb-2">แบรนด์</label>
-                    <input
-                      type="text"
-                      placeholder="เช่น BYD"
-                      value={manualInfo.brand}
-                      onChange={e => setManualInfo({...manualInfo, brand: e.target.value})}
-                      className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600 rounded-xl text-white placeholder-slate-500 focus:border-emerald-500 focus:outline-none transition-colors"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm text-slate-400 mb-2">รุ่น</label>
-                    <input
-                      type="text"
-                      placeholder="เช่น SEALION 7"
-                      value={manualInfo.model}
-                      onChange={e => setManualInfo({...manualInfo, model: e.target.value})}
-                      className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600 rounded-xl text-white placeholder-slate-500 focus:border-emerald-500 focus:outline-none transition-colors"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm text-slate-400 mb-2">รุ่นย่อย</label>
-                    <input
-                      type="text"
-                      placeholder="เช่น Premium"
-                      value={manualInfo.variant}
-                      onChange={e => setManualInfo({...manualInfo, variant: e.target.value})}
-                      className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600 rounded-xl text-white placeholder-slate-500 focus:border-emerald-500 focus:outline-none transition-colors"
-                    />
-                  </div>
+                  {/* Brand Dropdown */}
+                  <SearchableDropdown
+                    label="แบรนด์"
+                    placeholder="เลือกแบรนด์..."
+                    options={brands.map(b => ({
+                      value: b.id,
+                      label: b.nameTh ? `${b.name} (${b.nameTh})` : b.name,
+                    }))}
+                    value={selectedBrandId || manualInfo.brand}
+                    onChange={handleBrandChange}
+                    loading={loadingBrands}
+                  />
+                  
+                  {/* Model Dropdown */}
+                  <SearchableDropdown
+                    label="โมเดล"
+                    placeholder="เลือกโมเดล..."
+                    options={models.map(m => ({
+                      value: m.id,
+                      label: m.nameTh ? `${m.name} (${m.nameTh})` : m.name,
+                    }))}
+                    value={selectedModelId || manualInfo.model}
+                    onChange={handleModelChange}
+                    disabled={!selectedBrandId && !manualInfo.brand}
+                    loading={loadingModels}
+                  />
+                  
+                  {/* Variant Dropdown */}
+                  <SearchableDropdown
+                    label="รุ่นย่อย"
+                    placeholder="เลือกรุ่นย่อย..."
+                    options={variants.map(v => ({
+                      value: v.id,
+                      label: v.name,
+                    }))}
+                    value={manualInfo.variant}
+                    onChange={(value) => {
+                      const variant = variants.find(v => v.id === value);
+                      setManualInfo(prev => ({
+                        ...prev,
+                        variant: variant ? variant.name : value
+                      }));
+                    }}
+                    disabled={!selectedModelId && !manualInfo.model}
+                  />
                 </div>
+                
+                {/* Show selected values */}
+                {(manualInfo.brand || manualInfo.model || manualInfo.variant) && (
+                  <div className="mt-4 p-3 bg-slate-700/30 rounded-lg">
+                    <p className="text-xs text-slate-400 mb-1">ข้อมูลที่เลือก:</p>
+                    <p className="text-sm text-emerald-400">
+                      {[manualInfo.brand, manualInfo.model, manualInfo.variant].filter(Boolean).join(' → ')}
+                    </p>
+                  </div>
+                )}
                 
                 <p className="text-xs text-slate-500 mt-3 flex items-center gap-1">
                   <span>💡</span>
-                  <span>ถ้าไม่ระบุ AI จะแยกข้อมูลให้อัตโนมัติ</span>
+                  <span>ถ้าไม่ระบุ AI จะแยกข้อมูลให้อัตโนมัติ | กด "➕ เพิ่มใหม่" ถ้าไม่พบในรายการ</span>
                 </p>
               </div>
 
