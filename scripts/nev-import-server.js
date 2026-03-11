@@ -14,20 +14,44 @@ const app = express();
 const PORT = 3200; // NEV Import Server port
 
 // Create upload directory
-const UPLOAD_DIR = '/tmp/nev-import';
+const UPLOAD_DIR = '/Users/imodteam/Desktop/NEV-Database/Upload';
 if (!fs.existsSync(UPLOAD_DIR)) {
   fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+}
+
+// Generate folder name: YYYY-MM-DD-BRAND-Model-SubModel or YYYY-MM-DD-batch-{timestamp}
+function generateFolderName(brand, model, variant) {
+  const date = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+  
+  if (brand && model) {
+    const parts = [date, brand, model];
+    if (variant) parts.push(variant);
+    return parts.join('-').replace(/[^a-zA-Z0-9-]/g, '-'); // Clean filename
+  }
+  
+  // Fallback: date + timestamp
+  return `${date}-batch-${Date.now()}`;
 }
 
 // Multer storage config
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    const batchId = req.body.batchId || `batch-${Date.now()}`;
+    // Get manual info from request
+    const brand = req.body.brand || '';
+    const model = req.body.model || '';
+    const variant = req.body.variant || '';
+    const existingBatchId = req.body.existingBatchId || '';
+    
+    // Use existing batch ID if re-uploading
+    const batchId = existingBatchId || generateFolderName(brand, model, variant);
     const batchDir = path.join(UPLOAD_DIR, batchId);
     
     if (!fs.existsSync(batchDir)) {
       fs.mkdirSync(batchDir, { recursive: true });
     }
+    
+    // Store batchId in req for later use
+    req.batchId = batchId;
     
     cb(null, batchDir);
   },
@@ -58,7 +82,7 @@ app.get('/health', (req, res) => {
 app.post('/nev/import', upload.array('files', 10), async (req, res) => {
   try {
     const files = req.files;
-    const batchId = req.body.batchId || `batch-${Date.now()}`;
+    const batchId = req.batchId || `batch-${Date.now()}`; // From multer storage
     
     if (!files || files.length === 0) {
       return res.status(400).json({ error: 'No files uploaded' });
@@ -80,8 +104,14 @@ app.post('/nev/import', upload.array('files', 10), async (req, res) => {
         path: f.path,
         mimetype: f.mimetype
       })),
+      // Manual info (if provided)
+      manualInfo: {
+        brand: req.body.brand || null,
+        model: req.body.model || null,
+        variant: req.body.variant || null
+      },
       status: 'pending',
-      uploadedBy: req.body.userId || 'unknown',
+      uploadedBy: req.body.userId || 'vercel-upload',
       discordChannelId: '1467136835208609827', // #imoddrive
       discordThreadId: null
     };

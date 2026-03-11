@@ -1,13 +1,23 @@
 import { NextResponse } from 'next/server';
-import { mockBrands, mockModels, getVariantsByModel } from '@/lib/nev-mock-data';
+import { prisma } from '@/lib/prisma';
 
 export async function GET() {
-  const brandsWithCount = mockBrands.map(brand => ({
-    ...brand,
-    _count: {
-      models: mockModels.filter(m => m.brandId === brand.id).length,
-    },
-  }));
-  
-  return NextResponse.json(brandsWithCount);
+  try {
+    const brands = await prisma.nevBrand.findMany({
+      include: {
+        _count: {
+          select: { models: true },
+        },
+      },
+      orderBy: { name: 'asc' },
+    });
+    
+    return NextResponse.json({ brands });
+  } catch (error) {
+    console.error('Error fetching brands:', error);
+    return NextResponse.json(
+      { error: 'Failed to fetch brands', brands: [] },
+      { status: 500 }
+    );
+  }
 }

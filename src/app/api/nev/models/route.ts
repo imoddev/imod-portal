@@ -81,7 +81,7 @@ export async function GET(request: Request) {
       });
     }
 
-    return NextResponse.json(filteredModels);
+    return NextResponse.json({ models: filteredModels });
   } catch (error) {
     console.error('Error fetching NEV models:', error);
     return NextResponse.json(

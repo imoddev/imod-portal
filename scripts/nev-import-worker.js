@@ -10,7 +10,7 @@ const { PrismaClient } = require('@prisma/client');
 
 const prisma = new PrismaClient();
 
-const UPLOAD_DIR = '/tmp/nev-import';
+const UPLOAD_DIR = '/Users/imodteam/Desktop/NEV-Database/Upload';
 const DISCORD_CHANNEL_ID = '1467136835208609827'; // #imoddrive
 const MARCUS_EV_SESSION = 'workspace-marcus-ev'; // Marcus-EV workspace
 
