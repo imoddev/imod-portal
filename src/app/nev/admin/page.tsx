@@ -105,15 +105,15 @@ export default function NevAdminDashboard() {
           <div className="grid md:grid-cols-3 gap-6">
             <div>
               <div className="text-sm text-gray-600 mb-1">BEV (ไฟฟ้าเต็มรูปแบบ)</div>
-              <div className="text-2xl font-bold text-blue-600">{stats?.powertrainBreakdown.BEV || 0}</div>
+              <div className="text-2xl font-bold text-blue-600">{stats?.powertrainBreakdown?.BEV || 0}</div>
             </div>
             <div>
               <div className="text-sm text-gray-600 mb-1">PHEV (ไฮบริดปลั๊กอิน)</div>
-              <div className="text-2xl font-bold text-green-600">{stats?.powertrainBreakdown.PHEV || 0}</div>
+              <div className="text-2xl font-bold text-green-600">{stats?.powertrainBreakdown?.PHEV || 0}</div>
             </div>
             <div>
               <div className="text-sm text-gray-600 mb-1">HEV (ไฮบริด)</div>
-              <div className="text-2xl font-bold text-purple-600">{stats?.powertrainBreakdown.HEV || 0}</div>
+              <div className="text-2xl font-bold text-purple-600">{stats?.powertrainBreakdown?.HEV || 0}</div>
             </div>
           </div>
         </div>
