@@ -2,6 +2,31 @@
 
 All notable changes to the NEV Database system will be documented in this file.
 
+## [1.2.0] - 2026-03-11 19:20 (Asia/Bangkok)
+
+### Added
+- **Multi-file Batch Import** (สูงสุด 10 ไฟล์ต่อครั้ง)
+  - อัปโหลดหลายไฟล์พร้อมกัน
+  - แสดงรายการไฟล์ + ขนาด
+  - Progress indicator ระหว่างประมวลผล
+  
+- **Batch Processing Workflow**
+  1. บันทึกไฟล์ไปที่ `/tmp/nev-import/batch-{timestamp}/`
+  2. AI parse แต่ละไฟล์ → Extract specs
+  3. รวมข้อมูลจากทุกไฟล์
+  4. AI วิเคราะห์และ merge specs อีกครั้ง (resolve conflicts)
+  5. บันทึกลง database
+  
+- **Batch API** (`/api/nev/admin/import/batch`)
+  - รองรับ FormData multi-file
+  - Individual file parsing
+  - AI-powered spec merging
+  - Batch metadata (file count, batch ID)
+
+### Fixed
+- Deprecated export config warning
+- Type error: setFile → setFiles
+
 ## [1.1.0] - 2026-03-11 19:00 (Asia/Bangkok)
 
 ### Added
