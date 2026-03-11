@@ -1,9 +1,11 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 
 export default function ImportDataPage() {
+  const router = useRouter();
   const [mode, setMode] = useState<'url' | 'file'>('url');
   const [url, setUrl] = useState('');
   const [files, setFiles] = useState<File[]>([]);
@@ -76,13 +78,15 @@ export default function ImportDataPage() {
         return;
       }
       
-      setPreview(data);
-      setProgress('');
+      // Success - redirect to admin with message
+      alert(`✅ อัปโหลดสำเร็จ!\n\nBatch ID: ${data.batchId}\nไฟล์: ${data.fileCount} ไฟล์\n\nAI Agent กำลังประมวลผล...\nจะแจ้งผลทาง Discord เมื่อเสร็จ`);
+      
+      // Redirect back to admin
+      router.push('/nev/admin');
     } catch (err: any) {
       console.error('Import error:', err);
       alert(`❌ เกิดข้อผิดพลาด\n\n${err.message || err}`);
       setProgress('');
-    } finally {
       setLoading(false);
     }
   };

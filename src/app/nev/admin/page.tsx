@@ -20,12 +20,22 @@ interface Stats {
   lastUpdated: string;
 }
 
+interface Activity {
+  id: string;
+  description: string;
+  userName: string;
+  createdAt: string;
+  link: string | null;
+}
+
 export default function NevAdminDashboard() {
   const [stats, setStats] = useState<Stats | null>(null);
+  const [activities, setActivities] = useState<Activity[]>([]);
   const [loading, setLoading] = useState(true);
   const [version, setVersion] = useState('');
 
   useEffect(() => {
+    // Fetch stats
     fetch('/api/nev/stats')
       .then(r => r.json())
       .then(data => {
@@ -37,10 +47,17 @@ export default function NevAdminDashboard() {
         setLoading(false);
       });
     
+    // Fetch version
     fetch('/api/nev/version')
       .then(r => r.json())
       .then(data => setVersion(data.version))
       .catch(() => {});
+    
+    // Fetch activities
+    fetch('/api/nev/admin/activity')
+      .then(r => r.json())
+      .then(data => setActivities(data))
+      .catch(err => console.error('Error loading activities:', err));
   }, []);
 
   if (loading) {
@@ -125,6 +142,42 @@ export default function NevAdminDashboard() {
               <div className="text-2xl font-bold text-purple-600">{stats?.powertrainBreakdown?.HEV || 0}</div>
             </div>
           </div>
+        </div>
+
+        {/* Activity Feed */}
+        <div className="bg-white rounded-xl shadow-sm p-6 mb-8">
+          <h2 className="text-xl font-semibold mb-4">กิจกรรมล่าสุด</h2>
+          {activities.length === 0 ? (
+            <p className="text-gray-500 text-center py-8">ยังไม่มีกิจกรรม</p>
+          ) : (
+            <div className="space-y-3">
+              {activities.map((activity) => (
+                <div
+                  key={activity.id}
+                  className="flex items-start gap-3 p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+                >
+                  <div className="text-2xl">📝</div>
+                  <div className="flex-1">
+                    <p className="text-gray-900">{activity.description}</p>
+                    <p className="text-sm text-gray-500 mt-1">
+                      {new Date(activity.createdAt).toLocaleString('th-TH', {
+                        dateStyle: 'medium',
+                        timeStyle: 'short',
+                      })}
+                    </p>
+                  </div>
+                  {activity.link && (
+                    <Link
+                      href={activity.link}
+                      className="px-3 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                    >
+                      ดูรายละเอียด
+                    </Link>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Management Links */}
