@@ -801,6 +801,19 @@ model NevVariant {
   updatedAt    DateTime @updatedAt
 
   model        NevModel @relation(fields: [modelId], references: [id], onDelete: Cascade)
+  
+  // Relations to detailed specs (V2.0)
+  multimedia   NevMultimedia?
+  safety       NevSafety?
+  interior     NevInterior?
+  exterior     NevExterior?
+  evFeatures   NevEVFeatures?
+  battery      NevBatteryDetails?
+  suspension   NevSuspension?
+  brakes       NevBrakeSystem?
+  wheels       NevWheelsTires?
+  powertrain   NevPowertrain?
+  dimensions   NevDimensions?
 
   @@index([modelId])
   @@index([priceBaht])
@@ -847,3 +860,380 @@ model NevAuditLog {
   @@index([targetType, targetId])
   @@index([createdAt])
 }
+
+// ===================================================================
+// NEV Extended Specs (V2.0) - 11 Categories
+// Based on BYD SEALION 7 Complete Specification
+// Date: March 12, 2026
+// ===================================================================
+
+// 1. Multimedia & Convenience
+model NevMultimedia {
+  id                  String  @id @default(cuid())
+  variantId           String  @unique
+  variant             NevVariant @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  
+  // Display
+  displaySize         Float?
+  displayType         String?
+  displayResolution   String?
+  
+  // Connectivity
+  bluetooth           Boolean  @default(false)
+  appleCarPlay        Boolean  @default(false)
+  androidAuto         Boolean  @default(false)
+  
+  // Audio
+  audioSystem         String?
+  speakerCount        Int?
+  
+  // Features
+  voiceControl        Boolean  @default(false)
+  voiceLanguages      String?
+  navigation          Boolean  @default(false)
+  musicStreaming      Boolean  @default(false)
+  
+  // Ports
+  usbCFront           Int?
+  usbAFront           Int?
+  usbCRear            Int?
+  usbARear            Int?
+  powerOutlet12V      Boolean  @default(false)
+  wirelessCharging    Boolean  @default(false)
+  wirelessChargingWatt Float?
+  
+  // OTA & Smart
+  otaUpdate           Boolean  @default(false)
+  keylessEntry        Boolean  @default(false)
+  keylessStart        Boolean  @default(false)
+  nfcCard             Boolean  @default(false)
+  digitalKey          Boolean  @default(false)
+  
+  // Climate
+  climateZones        Int?
+  rearVents           Boolean  @default(false)
+  ionizer             Boolean  @default(false)
+  pm25Filter          Boolean  @default(false)
+  pm25FilterType      String?
+  
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+}
+
+// 2. Safety Systems
+model NevSafety {
+  id                  String  @id @default(cuid())
+  variantId           String  @unique
+  variant             NevVariant @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  
+  // Airbags
+  airbagsFront        Int?
+  airbagsSide         Int?
+  airbagsCurtain      Boolean  @default(false)
+  airbagsCenter       Boolean  @default(false)
+  airbagsRearSide     Boolean  @default(false)
+  
+  // Seatbelts
+  seatbeltPretensioner Boolean @default(false)
+  seatbeltReminderFront Boolean @default(false)
+  seatbeltReminderRear Boolean @default(false)
+  
+  // Child Safety
+  childLockElectric   Boolean  @default(false)
+  
+  // Camera & Sensors
+  camera360           Boolean  @default(false)
+  parkingSensorsFront Int?
+  parkingSensorsRear  Int?
+  
+  // Stability
+  esc                 Boolean  @default(false)
+  tcs                 Boolean  @default(false)
+  ebd                 Boolean  @default(false)
+  hhc                 Boolean  @default(false)
+  avh                 Boolean  @default(false)
+  
+  // ADAS
+  adaptiveCruise      Boolean  @default(false)
+  intelligentCruise   Boolean  @default(false)
+  trafficSignRecog    Boolean  @default(false)
+  speedLimitAlert     Boolean  @default(false)
+  speedLimitControl   Boolean  @default(false)
+  
+  autoEmergencyBrake  Boolean  @default(false)
+  forwardCollisionWarn Boolean @default(false)
+  rearCollisionWarn   Boolean  @default(false)
+  
+  laneDepartureWarn   Boolean  @default(false)
+  laneKeepAssist      Boolean  @default(false)
+  emergencyLaneKeep   Boolean  @default(false)
+  
+  frontCrossTrafficAlert Boolean @default(false)
+  frontCrossTrafficBrake Boolean @default(false)
+  rearCrossTrafficAlert Boolean @default(false)
+  rearCrossTrafficBrake Boolean @default(false)
+  
+  autoHighBeam        Boolean  @default(false)
+  blindSpotDetection  Boolean  @default(false)
+  doorOpenWarning     Boolean  @default(false)
+  driverMonitoring    Boolean  @default(false)
+  tpms                Boolean  @default(false)
+  
+  itac                Boolean  @default(false)
+  
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+}
+
+// 3. Interior Equipment
+model NevInterior {
+  id                  String  @id @default(cuid())
+  variantId           String  @unique
+  variant             NevVariant @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  
+  // Steering
+  steeringMultifunction Boolean @default(false)
+  steeringPowerAssist String?
+  steeringMaterial    String?
+  
+  // Display
+  hudDisplay          Boolean  @default(false)
+  instrumentCluster   String?
+  
+  // Mirrors
+  rearviewMirrorAutoDim Boolean @default(false)
+  sideMirrorsAutoDim  Boolean @default(false)
+  sideMirrorsFold     Boolean  @default(false)
+  sideMirrorsHeated   Boolean  @default(false)
+  sideMirrorsMemory   Boolean  @default(false)
+  sideMirrorsAutoTilt Boolean  @default(false)
+  
+  // Seating
+  seatMaterial        String?
+  
+  driverSeatPower     Boolean  @default(false)
+  driverSeatAdjustments Int?
+  driverSeatLumbar    Boolean  @default(false)
+  driverSeatMemory    Boolean  @default(false)
+  driverSeatVentilation Boolean @default(false)
+  
+  passengerSeatPower  Boolean  @default(false)
+  passengerSeatAdjustments Int?
+  
+  welcomeSeat         Boolean  @default(false)
+  
+  rearSeatFold        String?
+  rearSeatArmrest     Boolean  @default(false)
+  rearSeatCupholders  Int?
+  
+  isofixPoints        Int?
+  
+  // Storage
+  sunglassHolder      Boolean  @default(false)
+  cupholdersFront     Int?
+  vanityMirrors       Boolean  @default(false)
+  
+  // Lighting
+  ambientLighting     Boolean  @default(false)
+  ambientLightingType String?
+  readingLightsFront  Int?
+  readingLightsRear   Int?
+  trunkLight          Boolean  @default(false)
+  
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+}
+
+// 4. Exterior Equipment
+model NevExterior {
+  id                  String  @id @default(cuid())
+  variantId           String  @unique
+  variant             NevVariant @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  
+  // Lighting
+  headlightsType      String?
+  headlightsAuto      Boolean  @default(false)
+  headlightsFollowMeHome Boolean @default(false)
+  drlType             String?
+  taillightsType      String?
+  
+  rearFogLights       Boolean  @default(false)
+  turnSignalsSequential Boolean @default(false)
+  thirdBrakeLight     Boolean  @default(false)
+  thirdBrakeLightType String?
+  
+  // Roof
+  sunroofType         String?
+  sunroofElectric     Boolean  @default(false)
+  sunroofCurtain      Boolean  @default(false)
+  
+  // Doors
+  doorHandlesRetractable Boolean @default(false)
+  powerTailgate       Boolean  @default(false)
+  kickSensorTailgate  Boolean  @default(false)
+  
+  // Mirrors
+  sideMirrorsPower    Boolean  @default(false)
+  sideMirrorsFold     Boolean  @default(false)
+  sideMirrorsHeated   Boolean  @default(false)
+  sideMirrorsMemory   Boolean  @default(false)
+  sideMirrorsAutoTilt Boolean  @default(false)
+  
+  // Windows
+  windowsFrontLaminated Boolean @default(false)
+  windowsRearPrivacy  Boolean  @default(false)
+  windowsRearDefrost  Boolean  @default(false)
+  
+  // Wipers
+  wipersFrontAuto     Boolean  @default(false)
+  wipersRear          Boolean  @default(false)
+  
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+}
+
+// 5. EV Energy Features
+model NevEVFeatures {
+  id                  String  @id @default(cuid())
+  variantId           String  @unique
+  variant             NevVariant @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  
+  rangeNEDC           Float?
+  rangeWLTP           Float?
+  rangeEPA            Float?
+  
+  chargerMode2        Boolean  @default(false)
+  
+  acChargeType        String?
+  acChargeMaxKw       Float?
+  
+  dcChargeType        String?
+  dcChargeMaxKw       Float?
+  dcCharge10to80Min   Float?
+  
+  v2l                 Boolean  @default(false)
+  v2lAccessories      Boolean  @default(false)
+  
+  regenerativeBrake   Boolean  @default(false)
+  
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+}
+
+// 6. Battery
+model NevBatteryDetails {
+  id                  String  @id @default(cuid())
+  variantId           String  @unique
+  variant             NevVariant @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  
+  batteryType         String?
+  batteryKwh          Float?
+  batteryVoltage      Float?
+  batteryChemistry    String?
+  
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+}
+
+// 7. Suspension
+model NevSuspension {
+  id                  String  @id @default(cuid())
+  variantId           String  @unique
+  variant             NevVariant @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  
+  frontType           String?
+  rearType            String?
+  adaptiveSuspension  String?
+  adaptiveFrontRear   String?
+  
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+}
+
+// 8. Brake System
+model NevBrakeSystem {
+  id                  String  @id @default(cuid())
+  variantId           String  @unique
+  variant             NevVariant @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  
+  frontBrakeType      String?
+  rearBrakeType       String?
+  caliperColor        String?
+  
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+}
+
+// 9. Wheels & Tires
+model NevWheelsTires {
+  id                  String  @id @default(cuid())
+  variantId           String  @unique
+  variant             NevVariant @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  
+  wheelSizeInch       Float?
+  wheelMaterial       String?
+  
+  tireSizeFront       String?
+  tireSizeRear        String?
+  
+  spareTire           Boolean  @default(false)
+  spareType           String?
+  
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+}
+
+// 10. Powertrain & Performance
+model NevPowertrain {
+  id                  String  @id @default(cuid())
+  variantId           String  @unique
+  variant             NevVariant @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  
+  drivetrain          String?
+  
+  frontMotorType      String?
+  frontMotorKw        Float?
+  frontMotorNm        Float?
+  
+  rearMotorType       String?
+  rearMotorKw         Float?
+  rearMotorNm         Float?
+  
+  totalPowerKw        Float?
+  totalTorqueNm       Float?
+  
+  accel0100           Float?
+  topSpeedKmh         Float?
+  
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+}
+
+// 11. Dimensions & Weight
+model NevDimensions {
+  id                  String  @id @default(cuid())
+  variantId           String  @unique
+  variant             NevVariant @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  
+  seatingCapacity     Int?
+  
+  lengthMm            Float?
+  widthMm             Float?
+  heightMm            Float?
+  wheelbaseMm         Float?
+  
+  groundClearanceMm   Float?
+  groundClearanceLoadedMm Float?
+  
+  turningRadiusM      Float?
+  
+  trunkCapacityFrontL Float?
+  trunkCapacityRearL  Float?
+  
+  curbWeightKg        Float?
+  gvwKg               Float?
+  
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+}
+
