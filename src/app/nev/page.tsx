@@ -1,79 +1,28 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import Link from 'next/link';
 import { Card } from '@/components/ui/card';
-
-interface Brand {
-  id: string;
-  name: string;
-  nameTh: string | null;
-  slug: string;
-  logoUrl: string | null;
-  country: string | null;
-  _count: {
-    models: number;
-  };
-}
-
-interface Model {
-  id: string;
-  name: string;
-  slug: string;
-  brand: {
-    name: string;
-    slug: string;
-  };
-  bodyType: string | null;
-  seats: number | null;
-  powertrain: string;
-  imageUrl: string | null;
-  variants: {
-    priceBaht: number | null;
-    batteryKwh: number | null;
-    rangeKm: number | null;
-    motorHp: number | null;
-  }[];
-}
-
-interface Stats {
-  totalBrands: number;
-  totalModels: number;
-  totalVariants: number;
-  latestModels: Model[];
-}
+import { dummyBrands, dummyModels, dummyStats, Model } from './data/dummy';
 
 export default function NevHomePage() {
-  const [brands, setBrands] = useState<Brand[]>([]);
-  const [stats, setStats] = useState<Stats | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [activeFilter, setActiveFilter] = useState('All');
 
-  useEffect(() => {
-    Promise.all([
-      fetch('/api/nev/brands').then(r => r.json()),
-      fetch('/api/nev/stats').then(r => r.json()),
-    ]).then(([brandsData, statsData]) => {
-      setBrands(brandsData);
-      setStats(statsData);
-      setLoading(false);
-    }).catch(error => {
-      console.error('Error loading data:', error);
-      setLoading(false);
-    });
-  }, []);
+  const filters = ['All', 'BEV', 'PHEV', 'HEV', 'SUV', 'Sedan', 'Hatchback'];
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="text-2xl mb-2">🔄</div>
-          <p className="text-gray-600">Loading...</p>
-        </div>
-      </div>
-    );
-  }
+  // Filter models
+  const filteredModels = dummyStats.latestModels.filter((model) => {
+    if (activeFilter === 'All') return true;
+    if (['BEV', 'PHEV', 'HEV'].includes(activeFilter)) {
+      return model.powertrain === activeFilter;
+    }
+    if (['SUV', 'Sedan', 'Hatchback'].includes(activeFilter)) {
+      return model.bodyType === activeFilter;
+    }
+    return true;
+  });
 
-  // Get specs from first variant
+  // Get model specs
   const getModelSpecs = (model: Model) => {
     const variant = model.variants[0];
     if (!variant) return null;
@@ -86,6 +35,7 @@ export default function NevHomePage() {
     };
   };
 
+  // Get starting price
   const getStartingPrice = (model: Model) => {
     const prices = model.variants
       .map(v => v.priceBaht)
@@ -97,35 +47,84 @@ export default function NevHomePage() {
 
   return (
     <div className="min-h-screen bg-white">
-      {/* Header */}
-      <header className="border-b bg-white sticky top-0 z-50">
+      {/* Header - Apple Style */}
+      <header className="border-b border-gray-200 bg-white sticky top-0 z-50">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <Link href="/nev" className="flex items-center gap-2">
-            <span className="text-2xl font-bold">🚗⚡</span>
-            <span className="text-xl font-bold">NEV Database Thailand</span>
+          <Link href="/nev" className="flex items-center gap-3">
+            <span className="text-3xl">🚗⚡</span>
+            <div>
+              <span className="text-xl font-bold text-gray-900">NEV Database</span>
+              <span className="hidden md:inline text-gray-500 ml-2">Thailand</span>
+            </div>
           </Link>
           
           <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2 px-3 py-2 border rounded-lg cursor-pointer hover:bg-gray-50">
-              <span>🌐</span>
-              <span className="text-sm font-medium">ไทย</span>
-            </div>
-            <div className="flex items-center gap-2 px-3 py-2 border rounded-lg cursor-pointer hover:bg-gray-50">
-              <span>🇹🇭</span>
-              <span className="text-sm font-medium">Thailand</span>
-            </div>
+            <Link 
+              href="/nev/search"
+              className="px-4 py-2 bg-gray-100 rounded-full text-sm text-gray-700 hover:bg-gray-200 transition-colors"
+            >
+              🔍 ค้นหา
+            </Link>
           </div>
         </div>
       </header>
 
-      {/* Main Content */}
-      <main className="container mx-auto px-4 py-12">
-        {/* Popular Cars Section */}
-        <section className="mb-16">
-          <h2 className="text-3xl font-bold mb-8">Popular Cars</h2>
+      {/* Hero Section - Apple Style */}
+      <section className="py-20 text-center bg-gradient-to-b from-white to-gray-50">
+        <div className="container mx-auto px-4">
+          <h1 className="text-5xl md:text-6xl font-bold text-gray-900 mb-6">
+            NEV Database Thailand
+          </h1>
+          <p className="text-xl text-gray-600 mb-8 max-w-2xl mx-auto">
+            ฐานข้อมูลรถยนต์ไฟฟ้าและพลังงานใหม่ที่จำหน่ายในประเทศไทย
+          </p>
+
+          {/* Stats - Apple Style */}
+          <div className="flex justify-center gap-12 text-center">
+            <div>
+              <div className="text-4xl font-bold text-gray-900">{dummyStats.totalBrands}</div>
+              <div className="text-sm text-gray-600 mt-1">แบรนด์</div>
+            </div>
+            <div>
+              <div className="text-4xl font-bold text-gray-900">{dummyStats.totalModels}</div>
+              <div className="text-sm text-gray-600 mt-1">รุ่น</div>
+            </div>
+            <div>
+              <div className="text-4xl font-bold text-gray-900">{dummyStats.totalVariants}</div>
+              <div className="text-sm text-gray-600 mt-1">รุ่นย่อย</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Filter Tabs - Apple Style */}
+      <section className="border-b border-gray-200 sticky top-[65px] bg-white z-40">
+        <div className="container mx-auto px-4">
+          <div className="flex gap-2 overflow-x-auto py-4">
+            {filters.map((filter) => (
+              <button
+                key={filter}
+                onClick={() => setActiveFilter(filter)}
+                className={`px-6 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${
+                  activeFilter === filter
+                    ? 'bg-gray-900 text-white'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                {filter}
+              </button>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Models Grid - Apple Style */}
+      <section className="py-16">
+        <div className="container mx-auto px-4">
+          <h2 className="text-3xl font-bold text-gray-900 mb-8">รถยอดนิยม</h2>
           
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {stats?.latestModels.slice(0, 6).map((model) => {
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {filteredModels.map((model) => {
               const specs = getModelSpecs(model);
               const priceRange = getStartingPrice(model);
               
@@ -135,65 +134,75 @@ export default function NevHomePage() {
                   href={`/nev/models/${model.slug}`}
                   className="block group"
                 >
-                  <Card className="overflow-hidden hover:shadow-xl transition-all">
+                  <Card className="overflow-hidden hover:shadow-xl transition-all border border-gray-200">
                     {/* Image */}
                     <div className="aspect-[4/3] bg-gradient-to-br from-gray-100 to-gray-200 relative overflow-hidden">
                       {model.imageUrl ? (
                         <img
                           src={model.imageUrl}
                           alt={model.name}
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                         />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center">
-                          <span className="text-6xl">🚗</span>
+                          <span className="text-8xl opacity-50">🚗</span>
                         </div>
                       )}
+                      {/* Powertrain Badge */}
+                      <div className="absolute top-4 left-4">
+                        <span className={`px-3 py-1 rounded-full text-xs font-bold ${
+                          model.powertrain === 'BEV' 
+                            ? 'bg-blue-600 text-white' 
+                            : model.powertrain === 'PHEV'
+                            ? 'bg-green-600 text-white'
+                            : 'bg-gray-600 text-white'
+                        }`}>
+                          {model.powertrain}
+                        </span>
+                      </div>
                     </div>
 
                     {/* Info */}
                     <div className="p-6">
-                      <h3 className="text-xl font-bold mb-4">{model.brand.name} {model.name}</h3>
+                      <div className="text-sm text-gray-500 mb-1">{model.brand.name}</div>
+                      <h3 className="text-xl font-bold text-gray-900 mb-4 group-hover:text-blue-600 transition-colors">
+                        {model.name}
+                      </h3>
                       
-                      {/* Specs Grid */}
-                      <div className="space-y-2 mb-4">
-                        {model.bodyType && (
-                          <div className="flex justify-between text-sm">
-                            <span className="text-gray-600">Body Type</span>
-                            <span className="font-medium">{model.bodyType}</span>
-                          </div>
-                        )}
-                        
-                        {specs?.motorHp && (
-                          <div className="flex justify-between text-sm">
-                            <span className="text-gray-600">Motor Power (HP)</span>
-                            <span className="font-medium">{specs.motorHp}</span>
-                          </div>
-                        )}
-                        
+                      {/* Quick Specs - Apple Style */}
+                      <div className="grid grid-cols-2 gap-3 text-sm mb-4">
                         {specs?.rangeKm && (
-                          <div className="flex justify-between text-sm">
-                            <span className="text-gray-600">EV Range (km)</span>
-                            <span className="font-medium">{specs.rangeKm}</span>
+                          <div className="flex items-center gap-2 text-gray-600">
+                            <span>🛣️</span>
+                            <span>{specs.rangeKm} กม.</span>
                           </div>
                         )}
-                        
+                        {specs?.motorHp && (
+                          <div className="flex items-center gap-2 text-gray-600">
+                            <span>⚡</span>
+                            <span>{specs.motorHp} HP</span>
+                          </div>
+                        )}
+                        {model.bodyType && (
+                          <div className="flex items-center gap-2 text-gray-600">
+                            <span>🚙</span>
+                            <span>{model.bodyType}</span>
+                          </div>
+                        )}
                         {model.seats && (
-                          <div className="flex justify-between text-sm">
-                            <span className="text-gray-600">Seats</span>
-                            <span className="font-medium">{model.seats}</span>
+                          <div className="flex items-center gap-2 text-gray-600">
+                            <span>👥</span>
+                            <span>{model.seats} ที่นั่ง</span>
                           </div>
                         )}
                       </div>
 
                       {/* Price */}
                       {priceRange && (
-                        <div className="pt-4 border-t">
-                          <div className="text-xl font-bold text-blue-600">
-                            {priceRange.min === priceRange.max
-                              ? `฿${priceRange.min.toLocaleString()}`
-                              : `฿${priceRange.min.toLocaleString()}-${priceRange.max.toLocaleString()}`
-                            }
+                        <div className="pt-4 border-t border-gray-200">
+                          <div className="text-sm text-gray-500">เริ่มต้นที่</div>
+                          <div className="text-2xl font-bold text-gray-900">
+                            ฿{priceRange.min.toLocaleString()}
                           </div>
                         </div>
                       )}
@@ -203,40 +212,56 @@ export default function NevHomePage() {
               );
             })}
           </div>
-        </section>
+        </div>
+      </section>
 
-        {/* Explore by Brand */}
-        <section>
-          <h2 className="text-3xl font-bold mb-8">Explore New Cars by Brand</h2>
+      {/* Brands Grid - Apple Style */}
+      <section className="py-16 bg-gray-50">
+        <div className="container mx-auto px-4">
+          <h2 className="text-3xl font-bold text-gray-900 mb-8 text-center">
+            เลือกรถตามแบรนด์
+          </h2>
           
-          <div className="grid grid-cols-3 md:grid-cols-6 lg:grid-cols-8 gap-4">
-            {brands.map((brand) => (
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4">
+            {dummyBrands.map((brand) => (
               <Link
                 key={brand.id}
                 href={`/nev/brands/${brand.slug}`}
-                className="block p-6 border rounded-lg hover:shadow-lg hover:border-blue-600 transition-all text-center"
+                className="group"
               >
-                {brand.logoUrl ? (
-                  <img
-                    src={brand.logoUrl}
-                    alt={brand.name}
-                    className="w-full h-12 object-contain mb-2"
-                  />
-                ) : (
-                  <div className="text-3xl mb-2">🚗</div>
-                )}
-                <div className="font-medium text-sm">{brand.name}</div>
+                <Card className="p-6 text-center hover:shadow-lg transition-all border border-gray-200 hover:border-blue-600">
+                  {brand.logoUrl ? (
+                    <img
+                      src={brand.logoUrl}
+                      alt={brand.name}
+                      className="w-full h-12 object-contain mb-2"
+                    />
+                  ) : (
+                    <div className="text-3xl mb-2">🚗</div>
+                  )}
+                  <div className="font-bold text-gray-900 group-hover:text-blue-600 transition-colors">
+                    {brand.name}
+                  </div>
+                  <div className="text-xs text-gray-500 mt-1">{brand.totalModels} รุ่น</div>
+                </Card>
               </Link>
             ))}
           </div>
-        </section>
-      </main>
+        </div>
+      </section>
 
       {/* Footer */}
-      <footer className="bg-gray-50 border-t mt-20">
-        <div className="container mx-auto px-4 py-8 text-center text-sm text-gray-600">
-          <p>© 2026 iMoD (Mod Media Co., Ltd.) | NEV Database Thailand</p>
-          <p className="mt-2 text-xs">Developer Beta 1.0 - {stats?.totalModels} Models | {stats?.totalVariants} Variants</p>
+      <footer className="bg-gray-900 text-white py-12">
+        <div className="container mx-auto px-4">
+          <div className="text-center">
+            <h3 className="text-2xl font-bold mb-4">NEV Database Thailand</h3>
+            <p className="text-gray-400 mb-4">
+              Developer Beta 1.0.0 | {dummyStats.totalModels} Models | {dummyStats.totalVariants} Variants
+            </p>
+            <p className="text-sm text-gray-500">
+              © 2026 iMoD (Mod Media Co., Ltd.)
+            </p>
+          </div>
         </div>
       </footer>
     </div>

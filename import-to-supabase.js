@@ -12,7 +12,7 @@ const prisma = new PrismaClient({
 
 async function main() {
   console.log('📖 Reading data...');
-  const data = JSON.parse(fs.readFileSync('data/nev-import.json', 'utf-8'));
+  const data = JSON.parse(fs.readFileSync('data/nev-import-v2.json', 'utf-8'));
   
   console.log(`📊 Data summary:`);
   console.log(`   Brands: ${data.brands.length}`);
