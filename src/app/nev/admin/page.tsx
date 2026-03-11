@@ -53,7 +53,7 @@ export default function NevAdminDashboard() {
     
     fetch('/api/nev/admin/activity')
       .then(r => r.json())
-      .then(data => setActivities(data))
+      .then(data => setActivities(data.activities || []))
       .catch(err => console.error('Error loading activities:', err));
   }, []);
 
