@@ -143,7 +143,7 @@ export default function AdminModelsPage() {
               {models.map(model => (
                 <Link
                   key={model.id}
-                  href={`/nev/admin/models/${model.id}`}
+                  href={`/nev/admin/models/${model.slug}`}
                   className="group bg-slate-800/50 backdrop-blur-sm rounded-2xl overflow-hidden border border-slate-700 hover:border-emerald-500/50 transition-all hover:shadow-xl hover:shadow-emerald-500/10"
                 >
                   {/* Image */}
