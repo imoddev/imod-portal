@@ -3,275 +3,382 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import { Card } from '@/components/ui/card';
+
+interface Brand {
+  name: string;
+  slug: string;
+}
 
 interface Variant {
   id: string;
   name: string;
   fullName: string;
+  slug: string;
   priceBaht: number | null;
   batteryKwh: number | null;
   rangeKm: number | null;
   rangeStandard: string | null;
+  motorCount: number;
+  motorKw: number | null;
   motorHp: number | null;
   torqueNm: number | null;
+  topSpeedKmh: number | null;
+  accel0100: number | null;
   drivetrain: string | null;
+  dcChargeKw: number | null;
   dcChargeMin: number | null;
+  acChargeKw: number | null;
+  chargePort: string | null;
+  lengthMm: number | null;
+  widthMm: number | null;
+  heightMm: number | null;
+  wheelbaseMm: number | null;
+  groundClearanceMm: number | null;
+  curbWeightKg: number | null;
+  grossWeightKg: number | null;
+  trunkLitres: number | null;
+  warrantyVehicle: string | null;
+  warrantyBattery: string | null;
+  features: string | null;
+  hasV2l: boolean;
+  v2lKw: number | null;
+  hasV2g: boolean;
   isBestSeller: boolean;
 }
 
 interface Model {
   id: string;
   name: string;
-  nameTh: string | null;
   slug: string;
-  fullName: string | null;
-  year: number | null;
+  fullName: string;
+  year: number;
   bodyType: string | null;
-  powertrain: string;
+  segment: string | null;
   seats: number | null;
+  powertrain: string;
+  assembly: string | null;
+  madeIn: string | null;
   imageUrl: string | null;
   overview: string | null;
-  highlights: string[];
-  brand: {
-    name: string;
-    slug: string;
-  };
+  brand: Brand;
   variants: Variant[];
 }
 
 export default function ModelDetailPage() {
   const params = useParams();
   const slug = params.slug as string;
-  
+
   const [model, setModel] = useState<Model | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [selectedVariant, setSelectedVariant] = useState<Variant | null>(null);
 
   useEffect(() => {
-    fetch(`/api/nev/models?slug=${slug}`)
-      .then(r => r.json())
-      .then(data => {
-        if (data.length > 0) {
-          setModel(data[0]);
-        }
-        setLoading(false);
+    fetch(`/api/nev/models/${slug}`)
+      .then(r => {
+        if (!r.ok) throw new Error('Model not found');
+        return r.json();
       })
-      .catch(error => {
-        console.error('Error loading model:', error);
-        setLoading(false);
-      });
+      .then(data => {
+        setModel(data);
+        if (data.variants && data.variants.length > 0) {
+          setSelectedVariant(data.variants[0]);
+        }
+      })
+      .catch(err => {
+        setError(err.message);
+      })
+      .finally(() => setLoading(false));
   }, [slug]);
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center bg-white">
         <div className="text-center">
-          <div className="text-2xl mb-2">🔄</div>
+          <div className="text-4xl mb-4">🔄</div>
           <p className="text-gray-600">กำลังโหลด...</p>
         </div>
       </div>
     );
   }
 
-  if (!model) {
+  if (error || !model) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center bg-white">
         <div className="text-center">
-          <div className="text-6xl mb-4">❌</div>
-          <p className="text-xl text-gray-600">ไม่พบข้อมูลรถรุ่นนี้</p>
+          <div className="text-4xl mb-4">❌</div>
+          <p className="text-gray-600">{error || 'ไม่พบข้อมูลรถรุ่นนี้'}</p>
           <Link href="/nev" className="text-blue-600 hover:underline mt-4 inline-block">
-            กลับหน้าแรก
+            กลับหน้าหลัก
           </Link>
         </div>
       </div>
     );
   }
 
-  const getPowertrainLabel = (powertrain: string) => {
-    const labels: Record<string, string> = {
-      BEV: 'รถไฟฟ้า 100%',
-      PHEV: 'ปลั๊กอินไฮบริด',
-      HEV: 'ไฮบริด',
-    };
-    return labels[powertrain] || powertrain;
+  const formatNumber = (num: number | null) => {
+    if (num === null) return '-';
+    return num.toLocaleString('th-TH');
+  };
+
+  const formatPrice = (price: number | null) => {
+    if (price === null) return 'ติดต่อสอบถาม';
+    return `฿${price.toLocaleString('th-TH')}`;
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Hero Section */}
-      <div className="bg-gradient-to-r from-blue-600 to-green-600 text-white py-8">
-        <div className="container mx-auto px-4">
-          <Link href={`/nev/brands/${model.brand.slug}`} className="text-white hover:underline mb-4 inline-block opacity-90">
-            ← {model.brand.name}
-          </Link>
-          
-          <h1 className="text-4xl font-bold mb-2">
-            {model.brand.name} {model.name}
-          </h1>
-          {model.nameTh && (
-            <p className="text-xl opacity-90">{model.nameTh}</p>
+    <div className="min-h-screen bg-white">
+      {/* Header */}
+      <header className="border-b border-gray-200">
+        <div className="container mx-auto px-4 py-4">
+          <nav className="flex items-center gap-2 text-sm text-gray-600">
+            <Link href="/nev" className="hover:text-gray-900">NEV Database</Link>
+            <span>/</span>
+            <Link href={`/nev/brands/${model.brand.slug}`} className="hover:text-gray-900">{model.brand.name}</Link>
+            <span>/</span>
+            <span className="text-gray-900 font-medium">{model.name}</span>
+          </nav>
+        </div>
+      </header>
+
+      {/* Main Content */}
+      <main className="container mx-auto px-4 py-12">
+        {/* Title */}
+        <div className="text-center mb-12">
+          <h1 className="text-5xl font-semibold mb-4">{model.fullName}</h1>
+          {selectedVariant && (
+            <p className="text-3xl text-gray-600">{formatPrice(selectedVariant.priceBaht)}</p>
           )}
-          
-          <div className="flex gap-4 mt-4 text-sm">
-            <span>⚡ {getPowertrainLabel(model.powertrain)}</span>
-            {model.year && <span>📅 {model.year}</span>}
-            {model.bodyType && <span>🚙 {model.bodyType}</span>}
-            {model.seats && <span>👥 {model.seats} ที่นั่ง</span>}
-          </div>
         </div>
-      </div>
 
-      {/* Main Image */}
-      <div className="bg-white">
-        <div className="container mx-auto px-4 py-12">
-          <div className="aspect-video bg-gradient-to-br from-gray-100 to-gray-200 rounded-lg overflow-hidden">
-            {model.imageUrl ? (
-              <img
-                src={model.imageUrl}
-                alt={`${model.brand.name} ${model.name}`}
-                className="w-full h-full object-cover"
-              />
-            ) : (
-              <div className="w-full h-full flex items-center justify-center">
-                <span className="text-9xl">🚗</span>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* Overview */}
-      {(model.overview || model.highlights.length > 0) && (
-        <div className="container mx-auto px-4 py-12">
-          <Card className="p-8">
-            <h2 className="text-2xl font-bold mb-4">ภาพรวม</h2>
-            {model.overview && (
-              <p className="text-gray-700 mb-6">{model.overview}</p>
-            )}
-            
-            {model.highlights.length > 0 && (
-              <div>
-                <h3 className="font-bold mb-3">จุดเด่น:</h3>
-                <ul className="space-y-2">
-                  {model.highlights.map((highlight, i) => (
-                    <li key={i} className="flex items-start gap-2">
-                      <span className="text-green-600">✓</span>
-                      <span>{highlight}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-          </Card>
-        </div>
-      )}
-
-      {/* Variants */}
-      <div className="container mx-auto px-4 pb-12">
-        <h2 className="text-2xl font-bold mb-6">รุ่นย่อยทั้งหมด ({model.variants.length})</h2>
-        
-        {model.variants.length === 0 ? (
-          <Card className="p-12 text-center">
-            <p className="text-gray-600">ยังไม่มีข้อมูลรุ่นย่อย</p>
-          </Card>
-        ) : (
-          <div className="space-y-4">
-            {model.variants.map((variant) => (
-              <Card key={variant.id} className="p-6 hover:shadow-lg transition-shadow">
-                <div className="flex justify-between items-start mb-4">
-                  <div>
-                    <h3 className="text-xl font-bold text-gray-800">
-                      {variant.name}
-                    </h3>
-                    <p className="text-sm text-gray-600">{variant.fullName}</p>
-                  </div>
-                  
-                  <div className="text-right">
-                    {variant.priceBaht ? (
-                      <>
-                        <div className="text-sm text-gray-500">ราคา</div>
-                        <div className="text-2xl font-bold text-blue-600">
-                          {variant.priceBaht.toLocaleString()} ฿
-                        </div>
-                      </>
-                    ) : (
-                      <span className="text-gray-400">ไม่ระบุราคา</span>
-                    )}
-                  </div>
-                </div>
-
-                {/* Specs Grid */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                  {variant.batteryKwh && (
-                    <div>
-                      <div className="text-gray-500">🔋 แบตเตอรี่</div>
-                      <div className="font-medium">{variant.batteryKwh} kWh</div>
-                    </div>
-                  )}
-                  
-                  {variant.rangeKm && (
-                    <div>
-                      <div className="text-gray-500">📏 ระยะทาง</div>
-                      <div className="font-medium">
-                        {variant.rangeKm} km
-                        {variant.rangeStandard && (
-                          <span className="text-xs text-gray-400"> ({variant.rangeStandard})</span>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                  
-                  {variant.motorHp && (
-                    <div>
-                      <div className="text-gray-500">⚡ กำลัง</div>
-                      <div className="font-medium">{variant.motorHp} แรงม้า</div>
-                    </div>
-                  )}
-                  
-                  {variant.torqueNm && (
-                    <div>
-                      <div className="text-gray-500">🔧 แรงบิด</div>
-                      <div className="font-medium">{variant.torqueNm} Nm</div>
-                    </div>
-                  )}
-                  
-                  {variant.drivetrain && (
-                    <div>
-                      <div className="text-gray-500">🚗 ขับเคลื่อน</div>
-                      <div className="font-medium">{variant.drivetrain}</div>
-                    </div>
-                  )}
-                  
-                  {variant.dcChargeMin && (
-                    <div>
-                      <div className="text-gray-500">⚡ ชาร์จเร็ว</div>
-                      <div className="font-medium">{variant.dcChargeMin} นาที (10-80%)</div>
-                    </div>
-                  )}
-                </div>
-
-                {variant.isBestSeller && (
-                  <div className="mt-4 inline-block px-3 py-1 bg-yellow-100 text-yellow-800 text-xs font-bold rounded-full">
-                    🏆 Best Seller
-                  </div>
-                )}
-              </Card>
-            ))}
+        {/* Image */}
+        {model.imageUrl && (
+          <div className="mb-16">
+            <img
+              src={model.imageUrl}
+              alt={model.fullName}
+              className="w-full max-w-4xl mx-auto"
+            />
           </div>
         )}
-      </div>
 
-      {/* Footer Actions */}
-      <div className="bg-gray-100 py-8">
-        <div className="container mx-auto px-4 text-center">
+        {/* Variant Selector (Tabs) */}
+        {model.variants.length > 1 && (
+          <div className="mb-12 border-b border-gray-200">
+            <div className="flex gap-4 overflow-x-auto">
+              {model.variants.map((variant) => (
+                <button
+                  key={variant.id}
+                  onClick={() => setSelectedVariant(variant)}
+                  className={`px-6 py-3 font-medium whitespace-nowrap border-b-2 transition-colors ${
+                    selectedVariant?.id === variant.id
+                      ? 'border-blue-600 text-blue-600'
+                      : 'border-transparent text-gray-600 hover:text-gray-900'
+                  }`}
+                >
+                  {variant.name}
+                  {variant.isBestSeller && (
+                    <span className="ml-2 text-xs bg-blue-100 text-blue-600 px-2 py-1 rounded">
+                      ขายดี
+                    </span>
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Specs Table - Apple Style */}
+        {selectedVariant && (
+          <div className="space-y-12">
+            {/* สมรรถนะ */}
+            <section>
+              <h2 className="text-2xl font-semibold mb-6">สมรรถนะ</h2>
+              <div className="grid md:grid-cols-2 gap-6">
+                <div className="border rounded-lg p-6">
+                  <div className="text-sm text-gray-600 mb-1">มอเตอร์</div>
+                  <div className="text-2xl font-medium">
+                    {selectedVariant.motorCount === 1 ? 'Single Motor' : `${selectedVariant.motorCount} Motors`}
+                  </div>
+                </div>
+                <div className="border rounded-lg p-6">
+                  <div className="text-sm text-gray-600 mb-1">กำลังขับเคลื่อน</div>
+                  <div className="text-2xl font-medium">
+                    {selectedVariant.motorHp ? `${formatNumber(selectedVariant.motorHp)} แรงม้า` : '-'}
+                  </div>
+                </div>
+                <div className="border rounded-lg p-6">
+                  <div className="text-sm text-gray-600 mb-1">แรงบิดสูงสุด</div>
+                  <div className="text-2xl font-medium">
+                    {selectedVariant.torqueNm ? `${formatNumber(selectedVariant.torqueNm)} นิวตันเมตร` : '-'}
+                  </div>
+                </div>
+                <div className="border rounded-lg p-6">
+                  <div className="text-sm text-gray-600 mb-1">อัตราเร่ง 0-100 กม./ชม.</div>
+                  <div className="text-2xl font-medium">
+                    {selectedVariant.accel0100 ? `${selectedVariant.accel0100} วินาที` : '-'}
+                  </div>
+                </div>
+                <div className="border rounded-lg p-6">
+                  <div className="text-sm text-gray-600 mb-1">ความเร็วสูงสุด</div>
+                  <div className="text-2xl font-medium">
+                    {selectedVariant.topSpeedKmh ? `${formatNumber(selectedVariant.topSpeedKmh)} กม./ชม.` : '-'}
+                  </div>
+                </div>
+                <div className="border rounded-lg p-6">
+                  <div className="text-sm text-gray-600 mb-1">ระบบขับเคลื่อน</div>
+                  <div className="text-2xl font-medium">
+                    {selectedVariant.drivetrain || '-'}
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            {/* แบตเตอรี่และการชาร์จ */}
+            <section>
+              <h2 className="text-2xl font-semibold mb-6">แบตเตอรี่และการชาร์จ</h2>
+              <div className="grid md:grid-cols-2 gap-6">
+                <div className="border rounded-lg p-6">
+                  <div className="text-sm text-gray-600 mb-1">ความจุแบตเตอรี่</div>
+                  <div className="text-2xl font-medium">
+                    {selectedVariant.batteryKwh ? `${selectedVariant.batteryKwh} kWh` : '-'}
+                  </div>
+                </div>
+                <div className="border rounded-lg p-6">
+                  <div className="text-sm text-gray-600 mb-1">ระยะทาง ({selectedVariant.rangeStandard || 'NEDC'})</div>
+                  <div className="text-2xl font-medium">
+                    {selectedVariant.rangeKm ? `${formatNumber(selectedVariant.rangeKm)} กม.` : '-'}
+                  </div>
+                </div>
+                <div className="border rounded-lg p-6">
+                  <div className="text-sm text-gray-600 mb-1">DC Charging</div>
+                  <div className="text-2xl font-medium">
+                    {selectedVariant.dcChargeKw ? `${selectedVariant.dcChargeKw} kW` : '-'}
+                    {selectedVariant.dcChargeMin && ` (${selectedVariant.dcChargeMin} นาที 10-80%)`}
+                  </div>
+                </div>
+                <div className="border rounded-lg p-6">
+                  <div className="text-sm text-gray-600 mb-1">AC Charging</div>
+                  <div className="text-2xl font-medium">
+                    {selectedVariant.acChargeKw ? `${selectedVariant.acChargeKw} kW` : '-'}
+                  </div>
+                </div>
+                <div className="border rounded-lg p-6">
+                  <div className="text-sm text-gray-600 mb-1">พอร์ตชาร์จ</div>
+                  <div className="text-2xl font-medium">
+                    {selectedVariant.chargePort || '-'}
+                  </div>
+                </div>
+                <div className="border rounded-lg p-6">
+                  <div className="text-sm text-gray-600 mb-1">V2L (Vehicle to Load)</div>
+                  <div className="text-2xl font-medium">
+                    {selectedVariant.hasV2l
+                      ? (selectedVariant.v2lKw ? `รองรับ (${selectedVariant.v2lKw} kW)` : 'รองรับ')
+                      : 'ไม่รองรับ'
+                    }
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            {/* มิติและน้ำหนัก */}
+            <section>
+              <h2 className="text-2xl font-semibold mb-6">มิติและน้ำหนัก</h2>
+              <div className="grid md:grid-cols-2 gap-6">
+                <div className="border rounded-lg p-6">
+                  <div className="text-sm text-gray-600 mb-1">ความยาว</div>
+                  <div className="text-2xl font-medium">
+                    {selectedVariant.lengthMm ? `${formatNumber(selectedVariant.lengthMm)} มม.` : '-'}
+                  </div>
+                </div>
+                <div className="border rounded-lg p-6">
+                  <div className="text-sm text-gray-600 mb-1">ความกว้าง</div>
+                  <div className="text-2xl font-medium">
+                    {selectedVariant.widthMm ? `${formatNumber(selectedVariant.widthMm)} มม.` : '-'}
+                  </div>
+                </div>
+                <div className="border rounded-lg p-6">
+                  <div className="text-sm text-gray-600 mb-1">ความสูง</div>
+                  <div className="text-2xl font-medium">
+                    {selectedVariant.heightMm ? `${formatNumber(selectedVariant.heightMm)} มม.` : '-'}
+                  </div>
+                </div>
+                <div className="border rounded-lg p-6">
+                  <div className="text-sm text-gray-600 mb-1">ระยะฐานล้อ</div>
+                  <div className="text-2xl font-medium">
+                    {selectedVariant.wheelbaseMm ? `${formatNumber(selectedVariant.wheelbaseMm)} มม.` : '-'}
+                  </div>
+                </div>
+                <div className="border rounded-lg p-6">
+                  <div className="text-sm text-gray-600 mb-1">น้ำหนักตัวรถ</div>
+                  <div className="text-2xl font-medium">
+                    {selectedVariant.curbWeightKg ? `${formatNumber(selectedVariant.curbWeightKg)} กก.` : '-'}
+                  </div>
+                </div>
+                <div className="border rounded-lg p-6">
+                  <div className="text-sm text-gray-600 mb-1">พื้นที่บรรทุก</div>
+                  <div className="text-2xl font-medium">
+                    {selectedVariant.trunkLitres ? `${formatNumber(selectedVariant.trunkLitres)} ลิตร` : '-'}
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            {/* การรับประกัน */}
+            <section>
+              <h2 className="text-2xl font-semibold mb-6">การรับประกัน</h2>
+              <div className="grid md:grid-cols-2 gap-6">
+                <div className="border rounded-lg p-6">
+                  <div className="text-sm text-gray-600 mb-1">รับประกันตัวรถ</div>
+                  <div className="text-2xl font-medium">
+                    {selectedVariant.warrantyVehicle || '-'}
+                  </div>
+                </div>
+                <div className="border rounded-lg p-6">
+                  <div className="text-sm text-gray-600 mb-1">รับประกันแบตเตอรี่</div>
+                  <div className="text-2xl font-medium">
+                    {selectedVariant.warrantyBattery || '-'}
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            {/* ราคา */}
+            <section className="bg-gray-50 rounded-2xl p-8">
+              <div className="text-center">
+                <div className="text-sm text-gray-600 mb-2">ราคาเริ่มต้น</div>
+                <div className="text-5xl font-semibold mb-4">
+                  {formatPrice(selectedVariant.priceBaht)}
+                </div>
+                <div className="text-gray-600 mb-6">
+                  {model.brand.name} {model.name} {selectedVariant.name}
+                </div>
+                <button className="bg-blue-600 text-white px-8 py-3 rounded-full font-medium hover:bg-blue-700 transition-colors">
+                  ดูโปรโมชั่น
+                </button>
+              </div>
+            </section>
+          </div>
+        )}
+
+        {/* Back to Brand */}
+        <div className="mt-16 pt-8 border-t">
           <Link
-            href={`/nev/compare?models=${model.slug}`}
-            className="inline-block px-8 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
+            href={`/nev/brands/${model.brand.slug}`}
+            className="text-blue-600 hover:underline"
           >
-            เปรียบเทียบกับรถรุ่นอื่น
+            ← ดูรถ {model.brand.name} ทั้งหมด
           </Link>
         </div>
-      </div>
+      </main>
+
+      {/* Footer */}
+      <footer className="bg-gray-50 border-t mt-20">
+        <div className="container mx-auto px-4 py-8 text-center text-sm text-gray-600">
+          <p>© 2026 iMoD (Mod Media Co., Ltd.) | NEV Database Thailand</p>
+          <p className="mt-2 text-xs">Developer Beta 1.0</p>
+        </div>
+      </footer>
     </div>
   );
 }
