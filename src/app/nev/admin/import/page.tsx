@@ -176,7 +176,7 @@ export default function ImportDataPage() {
                     <input
                       type="file"
                       onChange={e => setFiles(Array.from(e.target.files || []))}
-                      accept=".doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png"
+                      accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png"
                       multiple
                       className="hidden"
                       id="file-upload"
@@ -187,7 +187,7 @@ export default function ImportDataPage() {
                         {files.length > 0 ? `เลือก ${files.length} ไฟล์` : 'คลิกเพื่อเลือกไฟล์'}
                       </p>
                       <p className="text-sm text-gray-500">
-                        รองรับ: DOC, DOCX, XLS, XLSX, JPG, PNG
+                        รองรับ: PDF, DOC, DOCX, XLS, XLSX, JPG, PNG
                       </p>
                     </label>
                   </div>
@@ -222,16 +222,16 @@ export default function ImportDataPage() {
             </div>
 
             {/* Supported Formats */}
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <h3 className="font-medium text-blue-900 mb-2">รูปแบบที่รองรับ</h3>
-              <ul className="text-sm text-blue-800 space-y-1">
+            <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+              <h3 className="font-medium text-green-900 mb-2">รูปแบบที่รองรับ</h3>
+              <ul className="text-sm text-green-800 space-y-1">
+                <li>✅ PDF - ใบสเปค, โบรชัวร์</li>
                 <li>✅ DOC/DOCX - เอกสาร Microsoft Word</li>
                 <li>✅ XLS/XLSX - ตาราง Excel</li>
                 <li>✅ JPG/PNG - รูปภาพ (จะแปลงเป็น WebP อัตโนมัติ)</li>
-                <li className="text-red-600">❌ PDF - ยังไม่รองรับ (ปัญหา serverless)</li>
               </ul>
-              <p className="text-xs text-blue-700 mt-2">
-                💡 แนะนำ: ใช้ DOC/DOCX แทน PDF สำหรับเอกสารข้อความ
+              <p className="text-xs text-green-700 mt-2">
+                💡 ทุกไฟล์ประมวลผลโดย AI บน Mac Studio (ไม่มีข้อจำกัด!)
               </p>
             </div>
           </div>
