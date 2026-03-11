@@ -80,7 +80,7 @@ export default function AdminVariantsPage() {
               {variants.map(v => (
                 <Link
                   key={v.id}
-                  href={`/nev/admin/variants/${v.id}`}
+                  href={`/nev/admin/variants/${v.slug}`}
                   className="block bg-gray-800 rounded-xl p-5 border border-gray-700 hover:border-blue-500 transition group"
                 >
                   <div className="flex items-center justify-between">

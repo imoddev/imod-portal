@@ -56,17 +56,17 @@ interface Variant {
   };
 }
 
-export default function EditVariantPage({ params }: { params: Promise<{ id: string }> }) {
+export default function EditVariantPage({ params }: { params: Promise<{ slug: string }> }) {
   const router = useRouter();
   const [variant, setVariant] = useState<Variant | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [id, setId] = useState<string>('');
+  const [slug, setSlug] = useState<string>('');
 
   useEffect(() => {
     params.then(p => {
-      setId(p.id);
-      fetch(`/api/nev/admin/variants/${p.id}`)
+      setSlug(p.slug);
+      fetch(`/api/nev/admin/variants/${p.slug}`)
         .then(r => r.json())
         .then(data => {
           setVariant(data);
@@ -82,7 +82,8 @@ export default function EditVariantPage({ params }: { params: Promise<{ id: stri
 
     setSaving(true);
     try {
-      const res = await fetch(`/api/nev/admin/variants/${id}`, {
+      // Use variant.id for API update (slug is for URL only)
+      const res = await fetch(`/api/nev/admin/variants/${variant.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(variant),

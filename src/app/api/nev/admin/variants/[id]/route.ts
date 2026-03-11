@@ -2,14 +2,16 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { createAuditLog } from '@/lib/nev-audit';
 
-// GET - Get single variant
+// GET - Get single variant (supports both id and slug)
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const { id } = await params;
-    const variant = await prisma.nevVariant.findUnique({
+    
+    // Try to find by id first, then by slug
+    let variant = await prisma.nevVariant.findUnique({
       where: { id },
       include: {
         model: {
@@ -21,6 +23,22 @@ export async function GET(
         },
       },
     });
+    
+    // If not found by id, try by slug
+    if (!variant) {
+      variant = await prisma.nevVariant.findUnique({
+        where: { slug: id },
+        include: {
+          model: {
+            include: {
+              brand: {
+                select: { name: true },
+              },
+            },
+          },
+        },
+      });
+    }
 
     if (!variant) {
       return NextResponse.json({ error: 'Variant not found' }, { status: 404 });
