@@ -70,7 +70,7 @@ export async function GET() {
       },
     });
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       totalBrands,
       totalModels,
       totalVariants,
@@ -80,6 +80,10 @@ export async function GET() {
       latestModels,
       lastUpdated: new Date().toISOString(),
     });
+    
+    // Cache for 5 minutes
+    response.headers.set('Cache-Control', 'public, s-maxage=300, stale-while-revalidate=600');
+    return response;
   } catch (error) {
     console.error('Error fetching stats:', error);
     return NextResponse.json(
