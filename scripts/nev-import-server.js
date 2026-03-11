@@ -73,6 +73,7 @@ app.post('/nev/import', upload.array('files', 10), async (req, res) => {
       batchId,
       timestamp: new Date().toISOString(),
       fileCount: files.length,
+      totalSize: files.reduce((sum, f) => sum + f.size, 0),
       files: files.map(f => ({
         name: f.originalname,
         size: f.size,
@@ -81,7 +82,8 @@ app.post('/nev/import', upload.array('files', 10), async (req, res) => {
       })),
       status: 'pending',
       uploadedBy: req.body.userId || 'unknown',
-      discordNotifyId: '1478707742603612241'
+      discordChannelId: '1478707742603612241',
+      discordThreadId: null
     };
     
     fs.writeFileSync(

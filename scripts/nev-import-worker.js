@@ -11,10 +11,68 @@ const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
 const UPLOAD_DIR = '/tmp/nev-import';
-const DISCORD_NOTIFY_ID = '1478707742603612241';
+const DISCORD_CHANNEL_ID = '1478707742603612241';
 
 // Get batchId from command line
 const batchId = process.argv[2];
+
+// Discord helpers
+async function createDiscordThread(metadata) {
+  const axios = require('axios');
+  const GATEWAY_URL = process.env.OPENCLAW_GATEWAY_URL || 'http://localhost:3030';
+  const GATEWAY_TOKEN = process.env.OPENCLAW_GATEWAY_TOKEN;
+  
+  try {
+    const response = await axios.post(`${GATEWAY_URL}/api/v1/message/send`, {
+      channel: 'discord',
+      action: 'thread-create',
+      channelId: DISCORD_CHANNEL_ID,
+      threadName: `🚗 NEV Import: ${metadata.batchId}`,
+      message: `**NEV Database Import**\n\nBatch ID: \`${metadata.batchId}\`\nไฟล์: ${metadata.fileCount} ไฟล์\nขนาดรวม: ${formatSize(metadata.totalSize)}\n\n⏳ กำลังเริ่มประมวลผล...`
+    }, {
+      headers: {
+        'Authorization': `Bearer ${GATEWAY_TOKEN}`,
+        'Content-Type': 'application/json'
+      }
+    });
+    
+    const threadId = response.data?.result?.threadId;
+    console.log(`[Worker] Discord thread created: ${threadId}`);
+    return threadId;
+  } catch (err) {
+    console.error('[Worker] Failed to create thread:', err.message);
+    return null;
+  }
+}
+
+async function sendProgress(threadId, step, details) {
+  if (!threadId) return;
+  
+  const axios = require('axios');
+  const GATEWAY_URL = process.env.OPENCLAW_GATEWAY_URL || 'http://localhost:3030';
+  const GATEWAY_TOKEN = process.env.OPENCLAW_GATEWAY_TOKEN;
+  
+  try {
+    await axios.post(`${GATEWAY_URL}/api/v1/message/send`, {
+      channel: 'discord',
+      threadId,
+      message: `${step}\n${details}`
+    }, {
+      headers: {
+        'Authorization': `Bearer ${GATEWAY_TOKEN}`,
+        'Content-Type': 'application/json'
+      }
+    });
+  } catch (err) {
+    console.error('[Worker] Failed to send progress:', err.message);
+  }
+}
+
+function formatSize(bytes) {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+}
 
 if (!batchId) {
   console.error('Usage: node nev-import-worker.js <batchId>');
@@ -36,16 +94,33 @@ async function main() {
   
   console.log(`[Worker] Found ${metadata.fileCount} files`);
   
+  // Create Discord thread
+  const threadId = await createDiscordThread(metadata);
+  metadata.discordThreadId = threadId;
+  
   // Update status
   metadata.status = 'processing';
   metadata.processedAt = new Date().toISOString();
   fs.writeFileSync(metadataPath, JSON.stringify(metadata, null, 2));
   
+  // Progress: Step 1 - Upload complete
+  await sendProgress(threadId, '✅ 1/6 อัปโหลดไฟล์เสร็จ', `📦 ${metadata.fileCount} ไฟล์ (${formatSize(metadata.totalSize)})`);
+  
+  // Progress: Step 2 - Parsing files
+  await sendProgress(threadId, '🔄 2/6 กำลัง parse ไฟล์...', `ประมวลผล ${metadata.fileCount} ไฟล์`);
+  
   // Process each file
   const results = [];
   
-  for (const file of metadata.files) {
-    console.log(`[Worker] Processing: ${file.name}`);
+  for (let i = 0; i < metadata.files.length; i++) {
+    const file = metadata.files[i];
+    console.log(`[Worker] Processing: ${file.name} (${i + 1}/${metadata.files.length})`);
+    
+    await sendProgress(
+      threadId, 
+      `🔄 2/6 กำลัง parse ไฟล์ (${i + 1}/${metadata.files.length})`,
+      `📄 ${file.name}`
+    );
     
     try {
       const result = await processFile(file);
@@ -65,15 +140,48 @@ async function main() {
   
   console.log(`[Worker] Extracted specs from ${allSpecs.length}/${metadata.fileCount} files`);
   
+  // Progress: Step 3 - AI Extract
+  await sendProgress(
+    threadId,
+    '✅ 3/6 AI extract specs เสร็จ',
+    `🤖 ดึงข้อมูลจาก ${allSpecs.length}/${metadata.fileCount} ไฟล์สำเร็จ`
+  );
+  
   let finalSpecs = null;
   let variant = null;
   
   if (allSpecs.length > 0) {
+    // Progress: Step 4 - Merge
+    await sendProgress(
+      threadId,
+      '🔄 4/6 กำลัง merge specs...',
+      `รวมข้อมูลจาก ${allSpecs.length} ไฟล์`
+    );
+    
     // Merge specs with AI
     finalSpecs = await mergeSpecsWithAI(allSpecs);
     
+    await sendProgress(
+      threadId,
+      '✅ 4/6 Merge specs เสร็จ',
+      `✨ ${finalSpecs.brand || ''} ${finalSpecs.model || ''} ${finalSpecs.variant || ''}`
+    );
+    
+    // Progress: Step 5 - Save database
+    await sendProgress(
+      threadId,
+      '🔄 5/6 กำลังบันทึกลง database...',
+      '💾 สร้าง brand/model/variant'
+    );
+    
     // Save to database
     variant = await saveToDatabase(finalSpecs);
+    
+    await sendProgress(
+      threadId,
+      '✅ 5/6 บันทึก database เสร็จ',
+      `📝 ${variant.fullName}`
+    );
     
     console.log(`[Worker] Saved variant: ${variant.fullName} (${variant.id})`);
   }
@@ -86,8 +194,21 @@ async function main() {
   metadata.variantId = variant?.id || null;
   fs.writeFileSync(metadataPath, JSON.stringify(metadata, null, 2));
   
-  // Send Discord notification
-  await sendDiscordNotification(metadata);
+  // Progress: Step 6 - Done
+  if (variant) {
+    const duration = Math.round((new Date() - new Date(metadata.timestamp)) / 1000);
+    await sendProgress(
+      threadId,
+      '✅ 6/6 เสร็จสิ้น!',
+      `🎉 Import สำเร็จ (ใช้เวลา ${duration} วินาที)\n\n🚗 **${variant.fullName}**\n💰 ราคา: ${variant.priceBaht ? `฿${variant.priceBaht.toLocaleString('th-TH')}` : '-'}\n🔋 แบตเตอรี่: ${variant.batteryKwh ? `${variant.batteryKwh} kWh` : '-'}\n📏 ระยะทาง: ${variant.rangeKm ? `${variant.rangeKm} km` : '-'}\n\n🔗 ดูรายละเอียด: https://imod-portal.vercel.app/nev/admin/variants/${variant.id}`
+    );
+  } else {
+    await sendProgress(
+      threadId,
+      '⚠️ Import ไม่สำเร็จ',
+      `ไม่สามารถ extract specs ได้\nตรวจสอบไฟล์และลองใหม่อีกครั้ง`
+    );
+  }
   
   console.log(`[Worker] Batch ${batchId} completed!`);
   
@@ -248,33 +369,7 @@ async function saveToDatabase(specs) {
   return variant;
 }
 
-async function sendDiscordNotification(metadata) {
-  const axios = require('axios');
-  
-  const message = metadata.status === 'completed' && metadata.variantId
-    ? `✅ **NEV Import สำเร็จ!**\n\nBatch: ${metadata.batchId}\nไฟล์: ${metadata.fileCount}\nรุ่น: ${metadata.finalSpecs?.brand} ${metadata.finalSpecs?.model} ${metadata.finalSpecs?.variant || ''}\n\n🔗 https://imod-portal.vercel.app/nev/admin/variants/${metadata.variantId}`
-    : `⚠️ **NEV Import มีปัญหา**\n\nBatch: ${metadata.batchId}\nไฟล์: ${metadata.fileCount}\nสถานะ: ${metadata.status}`;
-  
-  try {
-    const GATEWAY_URL = process.env.OPENCLAW_GATEWAY_URL || 'http://localhost:3030';
-    const GATEWAY_TOKEN = process.env.OPENCLAW_GATEWAY_TOKEN;
-    
-    await axios.post(`${GATEWAY_URL}/api/v1/message/send`, {
-      channel: 'discord',
-      target: `user:${DISCORD_NOTIFY_ID}`,
-      message
-    }, {
-      headers: {
-        'Authorization': `Bearer ${GATEWAY_TOKEN}`,
-        'Content-Type': 'application/json'
-      }
-    });
-    
-    console.log(`[Worker] Discord notification sent to ${DISCORD_NOTIFY_ID}`);
-  } catch (err) {
-    console.error('[Worker] Discord notification failed:', err.message);
-  }
-}
+// Discord notification removed - using thread progress updates instead
 
 // Run
 main().catch(err => {
