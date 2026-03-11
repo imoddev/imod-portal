@@ -18,8 +18,7 @@ export async function convertToWebP(
  * Parse PDF with AI (GLM-5)
  */
 export async function parsePDF(filePath: string): Promise<any> {
-  // TODO: Use pdf-parse to extract text, then GLM-5 to structure
-  const pdfParse = await import('pdf-parse/lib/pdf-parse');
+  const pdfParse = await import('pdf-parse');
   const dataBuffer = await readFile(filePath);
   const data = await pdfParse.default(dataBuffer);
   
