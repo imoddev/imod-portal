@@ -192,10 +192,10 @@ function saveActivityLog(batchId, metadata) {
 // Trigger AI Worker
 function triggerAIWorker(batchId) {
   return new Promise((resolve, reject) => {
-    const workerPath = path.join(__dirname, 'nev-import-worker.js');
+    const workerPath = path.join(__dirname, 'nev-import-worker-v2.js');
     const cmd = `node ${workerPath} ${batchId}`;
     
-    console.log(`[NEV Import] Triggering worker: ${cmd}`);
+    console.log(`[NEV Import] Triggering worker V2: ${cmd}`);
     
     const child = exec(cmd);
     

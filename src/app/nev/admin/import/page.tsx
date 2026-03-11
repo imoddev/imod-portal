@@ -567,7 +567,7 @@ export default function ImportDataPage() {
               )}
 
               {/* Optional Info - Dropdowns */}
-              <div className="bg-slate-800/50 backdrop-blur-sm rounded-2xl p-6 border border-slate-700">
+              <div className="bg-slate-800/50 backdrop-blur-sm rounded-2xl p-6 border border-slate-700 relative z-50">
                 <h3 className="text-white font-semibold mb-4 flex items-center gap-2">
                   <span>📝</span>
                   <span>ข้อมูลเพิ่มเติม</span>
@@ -639,7 +639,7 @@ export default function ImportDataPage() {
               </div>
 
               {/* Re-upload Option */}
-              <div className="bg-slate-800/50 backdrop-blur-sm rounded-2xl p-6 border border-slate-700">
+              <div className="bg-slate-800/50 backdrop-blur-sm rounded-2xl p-6 border border-slate-700 relative z-10">
                 <label className="flex items-center gap-3 cursor-pointer">
                   <input
                     type="checkbox"
