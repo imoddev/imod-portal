@@ -285,28 +285,69 @@ export default function ModelDetailPage() {
               <SpecRow label="รับประกันแบตเตอรี่" value={selectedVariant.warrantyBattery || '-'} highlight />
             </SpecSection>
 
-            {/* Features */}
+            {/* Features - จัดกลุ่มตามหมวดหมู่แบบ BYD Brochure */}
             {selectedVariant.features && Object.keys(selectedVariant.features).length > 0 && (
-              <section>
-                <h2 className="text-2xl font-bold text-white mb-6 pb-2 border-b border-slate-700 flex items-center gap-2">
-                  ✨ ฟีเจอร์
-                </h2>
-                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {Object.entries(selectedVariant.features).map(([category, items]) => (
-                    <div key={category} className="bg-slate-800/50 border border-slate-700 rounded-2xl p-4">
-                      <h3 className="font-semibold text-white mb-3 capitalize">{category}</h3>
-                      <ul className="space-y-2">
-                        {items.map((item, i) => (
-                          <li key={i} className="text-sm text-slate-400 flex items-center gap-2">
-                            <span className="text-emerald-400">✓</span>
-                            {item}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  ))}
-                </div>
-              </section>
+              <>
+                {/* แยกตามหมวด */}
+                {(() => {
+                  const featureCategories = {
+                    exterior: { icon: '🚗', title: 'อุปกรณ์ภายนอก', keys: ['exterior', 'ภายนอก', 'lights', 'ไฟ'] },
+                    interior: { icon: '🛋️', title: 'อุปกรณ์ภายใน', keys: ['interior', 'ภายใน', 'seat', 'เบาะ', 'steering', 'พวงมาลัย'] },
+                    safety: { icon: '🛡️', title: 'ระบบความปลอดภัย', keys: ['safety', 'ความปลอดภัย', 'airbag', 'ถุงลม', 'sensor', 'camera'] },
+                    adas: { icon: '🎯', title: 'ระบบช่วยขับขี่ ADAS', keys: ['adas', 'assist', 'ช่วยขับขี่', 'cruise', 'lane', 'parking'] },
+                    multimedia: { icon: '🎵', title: 'มัลติมีเดียและความสะดวกสบาย', keys: ['multimedia', 'มัลติมีเดีย', 'entertainment', 'audio', 'speaker', 'screen', 'carplay'] },
+                    suspension: { icon: '🔧', title: 'ระบบช่วงล่าง', keys: ['suspension', 'ช่วงล่าง', 'brake', 'เบรก', 'wheel', 'ล้อ', 'tire', 'ยาง'] },
+                    charging: { icon: '🔌', title: 'ระบบชาร์จ', keys: ['charge', 'ชาร์จ', 'v2l', 'power'] },
+                    other: { icon: '✨', title: 'อื่นๆ', keys: [] },
+                  };
+                  
+                  const categorizedFeatures: Record<string, string[]> = {};
+                  const usedKeys = new Set<string>();
+                  
+                  // จับคู่ features กับ categories
+                  Object.entries(selectedVariant.features || {}).forEach(([key, items]) => {
+                    const lowerKey = key.toLowerCase();
+                    let matched = false;
+                    
+                    for (const [catKey, cat] of Object.entries(featureCategories)) {
+                      if (catKey === 'other') continue;
+                      if (cat.keys.some(k => lowerKey.includes(k))) {
+                        if (!categorizedFeatures[catKey]) categorizedFeatures[catKey] = [];
+                        categorizedFeatures[catKey].push(...(Array.isArray(items) ? items : [items]));
+                        usedKeys.add(key);
+                        matched = true;
+                        break;
+                      }
+                    }
+                    
+                    if (!matched) {
+                      if (!categorizedFeatures['other']) categorizedFeatures['other'] = [];
+                      categorizedFeatures['other'].push(...(Array.isArray(items) ? items : [items]));
+                    }
+                  });
+                  
+                  return Object.entries(categorizedFeatures).map(([catKey, items]) => {
+                    const cat = featureCategories[catKey as keyof typeof featureCategories];
+                    if (!items || items.length === 0) return null;
+                    
+                    return (
+                      <section key={catKey}>
+                        <h2 className="text-2xl font-bold text-white mb-6 pb-2 border-b border-slate-700 flex items-center gap-2">
+                          {cat.icon} {cat.title}
+                        </h2>
+                        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-3">
+                          {items.map((item, i) => (
+                            <div key={i} className="flex items-center gap-3 p-4 bg-slate-800/50 border border-slate-700 rounded-xl hover:border-emerald-500/30 transition-colors">
+                              <span className="text-emerald-400 flex-shrink-0">✓</span>
+                              <span className="text-slate-300 text-sm">{item}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </section>
+                    );
+                  });
+                })()}
+              </>
             )}
           </div>
 
