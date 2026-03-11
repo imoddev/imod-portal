@@ -115,13 +115,13 @@ def parse_brand_sheet(brand_name, df):
                 continue
             
             # Map Thai spec names to our fields
-            if 'ระยะทาง' in spec_name or 'Range' in spec_name:
+            if 'ระยะทาง' in spec_name and '(' in spec_name:  # ระยะทางสูงสุด (กม.)
                 specs['rangeKm'] = safe_int(spec_value)
-            elif 'แบตเตอรี่' in spec_name or 'Battery' in spec_name:
+            elif 'ขนาดแบตเตอรี่' in spec_name and 'kWh' in spec_name:  # ขนาดแบตเตอรี่ (kWh)
                 specs['batteryKwh'] = safe_float(spec_value)
-            elif 'แรงม้า' in spec_name or 'Horsepower' in spec_name or 'กำลัง' in spec_name:
+            elif 'แรงม้า' in spec_name and 'Hp' in spec_name:  # แรงม้า (Hp)
                 specs['motorHp'] = safe_int(spec_value)
-            elif 'แรงบิด' in spec_name or 'Torque' in spec_name:
+            elif 'แรงบิด' in spec_name and 'เมตร' in spec_name:  # แรงบิดสูงสุด (นิวตัน-เมตร)
                 specs['torqueNm'] = safe_int(spec_value)
             elif 'ราคา' in spec_name or 'Price' in spec_name:
                 specs['priceBaht'] = safe_int(spec_value)

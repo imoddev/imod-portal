@@ -72,6 +72,7 @@ export default function AdminVariantsPage() {
                     <th className="text-right px-4 py-3 text-sm font-medium text-gray-600">ระยะทาง</th>
                     <th className="text-right px-4 py-3 text-sm font-medium text-gray-600">แรงม้า</th>
                     <th className="text-center px-4 py-3 text-sm font-medium text-gray-600">ขับเคลื่อน</th>
+                    <th className="text-center px-4 py-3 text-sm font-medium text-gray-600">จัดการ</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y">
@@ -79,12 +80,21 @@ export default function AdminVariantsPage() {
                     <tr key={v.id} className="hover:bg-gray-50">
                       <td className="px-4 py-3 text-gray-600">{v.model?.brand?.name}</td>
                       <td className="px-4 py-3 text-gray-600">{v.model?.name}</td>
-                      <td className="px-4 py-3 font-medium">{v.name}</td>
+                      <td className="px-4 py-3 font-medium">
+                        <Link href={`/nev/admin/variants/${v.id}`} className="text-blue-600 hover:underline">
+                          {v.name}
+                        </Link>
+                      </td>
                       <td className="px-4 py-3 text-right">{formatPrice(v.priceBaht)}</td>
                       <td className="px-4 py-3 text-right">{v.batteryKwh || '-'}</td>
                       <td className="px-4 py-3 text-right">{v.rangeKm ? `${v.rangeKm} km` : '-'}</td>
                       <td className="px-4 py-3 text-right">{v.motorHp ? `${v.motorHp} hp` : '-'}</td>
                       <td className="px-4 py-3 text-center">{v.drivetrain || '-'}</td>
+                      <td className="px-4 py-3 text-center">
+                        <Link href={`/nev/admin/variants/${v.id}`} className="px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700">
+                          Edit
+                        </Link>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
