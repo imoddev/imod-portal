@@ -1,20 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { writeFile, mkdir } from 'fs/promises';
-import { join } from 'path';
-import { existsSync } from 'fs';
-import {
-  parsePDF,
-  parseDOCX,
-  parseExcel,
-  extractSpecsWithAI,
-  convertToWebP,
-} from '@/lib/nev-import-helpers';
 
-const TEMP_DIR = '/tmp/nev-import';
+const MAC_STUDIO_URL = process.env.MAC_STUDIO_IMPORT_URL || 'http://localhost:3200';
 
 export async function POST(request: NextRequest) {
   try {
-    console.log('[Batch Import] Starting batch import...');
+    console.log('[Batch Import] Starting batch import via Mac Studio...');
     
     const formData = await request.formData();
     const files = formData.getAll('files') as File[];
@@ -39,212 +29,51 @@ export async function POST(request: NextRequest) {
       }, { status: 400 });
     }
 
-    // Create temp directory with timestamp
-    const timestamp = Date.now();
-    const batchDir = join(TEMP_DIR, `batch-${timestamp}`);
+    // Create new FormData for Mac Studio
+    const macStudioFormData = new FormData();
+    const batchId = `batch-${Date.now()}`;
     
-    if (!existsSync(batchDir)) {
-      await mkdir(batchDir, { recursive: true });
-    }
-
-    // Step 1: Save all files
-    const savedFiles: { path: string; name: string; type: string }[] = [];
+    macStudioFormData.append('batchId', batchId);
+    macStudioFormData.append('userId', 'vercel-upload');
     
+    // Add all files
     for (const file of files) {
-      const bytes = await file.arrayBuffer();
-      const buffer = Buffer.from(bytes);
-      const filePath = join(batchDir, file.name);
-      
-      await writeFile(filePath, buffer);
-      savedFiles.push({
-        path: filePath,
-        name: file.name,
-        type: file.type,
-      });
-    }
-
-    // Step 2: Parse each file
-    console.log('[Batch Import] Parsing files...');
-    const parsedData: any[] = [];
-    
-    for (let i = 0; i < savedFiles.length; i++) {
-      const file = savedFiles[i];
-      console.log(`[Batch Import] Parsing file ${i + 1}/${savedFiles.length}: ${file.name}`);
-      
-      let extractedText = '';
-      let fileData: any = { success: false };
-
-      try {
-        if (file.type.includes('pdf')) {
-          // PDF parsing disabled (not supported on Vercel serverless)
-          fileData = { 
-            type: 'pdf', 
-            error: 'PDF parsing not supported on serverless. Please use DOC/DOCX/XLS/Images instead.',
-            success: false 
-          };
-        } else if (file.type.includes('word') || file.type.includes('document')) {
-          const docData = await parseDOCX(file.path);
-          extractedText = docData.text;
-          fileData = { type: 'doc', success: true };
-        } else if (file.type.includes('spreadsheet') || file.type.includes('excel')) {
-          const excelData = await parseExcel(file.path);
-          fileData = { type: 'excel', data: excelData, success: true };
-        } else if (file.type.includes('image')) {
-          const webpPath = file.path.replace(/\.(jpg|jpeg|png)$/i, '.webp');
-          await convertToWebP(file.path, webpPath);
-          fileData = { type: 'image', webpPath, success: true };
-        } else {
-          fileData = { type: 'unknown', error: 'Unsupported file type', success: false };
-        }
-
-        // Extract specs with AI if we have text
-        if (extractedText && extractedText.length > 50) {
-          console.log(`[Batch Import] Extracting specs from ${file.name}...`);
-          const specs = await extractSpecsWithAI(extractedText);
-          fileData.specs = specs;
-          fileData.extractedText = extractedText.substring(0, 500); // First 500 chars for preview
-        }
-      } catch (parseError: any) {
-        console.error(`[Batch Import] Error parsing ${file.name}:`, parseError);
-        fileData.error = parseError.message || 'Parse error';
-        fileData.success = false;
-      }
-
-      parsedData.push({
-        filename: file.name,
-        ...fileData,
-      });
+      macStudioFormData.append('files', file);
     }
     
-    console.log('[Batch Import] Parsed files:', parsedData.length);
-
-    // Step 3: Combine all extracted specs
-    const allSpecs = parsedData
-      .filter(d => d.specs && d.success)
-      .map(d => d.specs);
+    console.log('[Batch Import] Forwarding to Mac Studio:', MAC_STUDIO_URL);
     
-    console.log('[Batch Import] Extracted specs from files:', allSpecs.length);
-
-    // Step 4: AI analyze combined data
-    let finalSpecs: any = {};
-    let mergeError: string | null = null;
+    // Forward to Mac Studio
+    const response = await fetch(`${MAC_STUDIO_URL}/nev/import`, {
+      method: 'POST',
+      body: macStudioFormData,
+    });
     
-    if (allSpecs.length > 0) {
-      try {
-        console.log('[Batch Import] Merging specs with AI...');
-        finalSpecs = await analyzeAndMergeSpecs(allSpecs);
-        console.log('[Batch Import] Merge successful');
-      } catch (mergeErr: any) {
-        console.error('[Batch Import] Merge error:', mergeErr);
-        mergeError = mergeErr.message || 'Failed to merge specs';
-        // Fallback: use first spec if merge fails
-        finalSpecs = allSpecs[0] || {};
-      }
-    } else {
-      mergeError = 'No specs extracted from files';
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('[Batch Import] Mac Studio error:', response.status, errorText);
+      return NextResponse.json({
+        error: 'Failed to forward files to Mac Studio',
+        details: errorText.substring(0, 200),
+      }, { status: 500 });
     }
-
-    const successCount = parsedData.filter(d => d.success).length;
-    const failCount = parsedData.filter(d => !d.success).length;
     
-    console.log('[Batch Import] Complete:', { successCount, failCount });
+    const result = await response.json();
+    console.log('[Batch Import] Mac Studio response:', result);
     
     return NextResponse.json({
-      source: 'batch',
-      batchId: `batch-${timestamp}`,
+      success: true,
+      batchId: result.batchId,
       fileCount: files.length,
-      successCount,
-      failCount,
-      batchDir,
-      parsedData,
-      mergeError,
-      data: {
-        specs: finalSpecs,
-        individualSpecs: allSpecs,
-      },
+      message: 'ไฟล์อัปโหลดสำเร็จ! AI Agent บน Mac Studio กำลังประมวลผล...',
+      macStudioResponse: result,
       timestamp: new Date().toISOString(),
     });
-  } catch (error) {
-    console.error('Error processing batch:', error);
+  } catch (error: any) {
+    console.error('[Batch Import] Error:', error);
     return NextResponse.json(
-      { error: 'Failed to process batch', details: String(error) },
+      { error: 'Failed to process batch', details: error.message },
       { status: 500 }
     );
-  }
-}
-
-/**
- * Analyze and merge multiple spec objects with AI
- */
-async function analyzeAndMergeSpecs(specs: any[]): Promise<any> {
-  // Check API key
-  if (!process.env.GLM_API_KEY) {
-    console.warn('[Batch Import] GLM_API_KEY not set, using simple merge');
-    // Fallback: simple merge (first spec wins)
-    return specs[0] || {};
-  }
-  
-  console.log('[Batch Import] Calling GLM-5 API...');
-  
-  // Call GLM-5 to intelligently merge specs
-  const response = await fetch('https://open.bigmodel.cn/api/paas/v4/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${process.env.GLM_API_KEY}`,
-    },
-    body: JSON.stringify({
-      model: 'glm-4',
-      messages: [
-        {
-          role: 'system',
-          content: `You are a vehicle specification data analyst. You receive multiple extracted spec objects from different sources (brochures, spec sheets, images, etc.). Your task is to:
-
-1. Identify the vehicle (brand, model, variant)
-2. Merge and consolidate all specs into ONE complete object
-3. Resolve conflicts (take the most specific/detailed value)
-4. Fill missing fields with null
-
-Return ONLY a JSON object with these fields:
-- brand, model, variant
-- priceBaht, batteryKwh, rangeKm, motorHp, torqueNm
-- accel0100, topSpeedKmh, drivetrain
-- dcChargeKw, dcChargeMin
-- lengthMm, widthMm, heightMm, wheelbaseMm, curbWeightKg`,
-        },
-        {
-          role: 'user',
-          content: `Analyze and merge these specs:\n\n${JSON.stringify(specs, null, 2)}`,
-        },
-      ],
-      temperature: 0.1,
-    }),
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error('[Batch Import] GLM API error:', response.status, errorText);
-    throw new Error(`GLM API error: ${response.status} - ${errorText.substring(0, 200)}`);
-  }
-
-  const result = await response.json();
-  console.log('[Batch Import] GLM API response received');
-  
-  const content = result.choices?.[0]?.message?.content;
-  
-  if (!content) {
-    throw new Error('No AI response content');
-  }
-  
-  try {
-    return JSON.parse(content);
-  } catch {
-    // Try to extract JSON from markdown code block
-    const match = content.match(/```json\n([\s\S]+?)\n```/);
-    if (match) {
-      return JSON.parse(match[1]);
-    }
-    console.error('[Batch Import] Failed to parse AI response:', content.substring(0, 500));
-    throw new Error('Failed to parse AI response');
   }
 }
