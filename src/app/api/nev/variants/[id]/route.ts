@@ -7,11 +7,12 @@ import { prisma } from '@/lib/prisma';
  */
 export async function GET(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const variant = await prisma.nevVariant.findUnique({
-      where: { id: params.id },
+      where: { id },
       include: {
         model: {
           include: {
@@ -29,19 +30,16 @@ export async function GET(
     }
 
     // Parse features JSON if exists
-    let parsedVariant = variant;
+    const response: any = { ...variant };
     if (variant.features) {
       try {
-        parsedVariant = {
-          ...variant,
-          featuresData: JSON.parse(variant.features),
-        };
+        response.featuresData = JSON.parse(variant.features);
       } catch {
         // Keep features as string if parsing fails
       }
     }
 
-    return NextResponse.json(parsedVariant);
+    return NextResponse.json(response);
   } catch (error) {
     console.error('Error fetching NEV variant:', error);
     return NextResponse.json(

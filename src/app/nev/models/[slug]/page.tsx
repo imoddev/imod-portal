@@ -24,6 +24,7 @@ interface Model {
   id: string;
   name: string;
   nameTh: string | null;
+  slug: string;
   fullName: string | null;
   year: number | null;
   bodyType: string | null;
