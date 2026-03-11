@@ -638,7 +638,7 @@ export default function ImportDataPage() {
                 </p>
               </div>
 
-              {/* Re-upload Option */}
+              {/* Re-upload Option - Select existing variant/folder */}
               <div className="bg-slate-800/50 backdrop-blur-sm rounded-2xl p-6 border border-slate-700 relative z-10">
                 <label className="flex items-center gap-3 cursor-pointer">
                   <input
@@ -648,19 +648,33 @@ export default function ImportDataPage() {
                     className="w-5 h-5 rounded bg-slate-700 border-slate-600 text-emerald-500 focus:ring-emerald-500"
                   />
                   <div>
-                    <span className="text-white font-medium">อัปโหลดเพิ่มไปยัง batch เดิม</span>
-                    <p className="text-xs text-slate-400">ใช้เมื่อต้องการเพิ่มไฟล์เข้าไปในการ import ที่มีอยู่</p>
+                    <span className="text-white font-medium">อัปโหลดเพิ่มไปยังรุ่นเดิม</span>
+                    <p className="text-xs text-slate-400">ใช้เมื่อต้องการเพิ่มไฟล์เข้าไปในรุ่นที่มีอยู่แล้ว</p>
                   </div>
                 </label>
                 
                 {existingBatchId && (
-                  <input
-                    type="text"
-                    placeholder="Batch ID (เช่น batch-1234567890)"
-                    value={existingBatchId === 'placeholder' ? '' : existingBatchId}
-                    onChange={e => setExistingBatchId(e.target.value)}
-                    className="mt-4 w-full px-4 py-3 bg-slate-700/50 border border-slate-600 rounded-xl text-white placeholder-slate-500 focus:border-emerald-500 focus:outline-none transition-colors"
-                  />
+                  <div className="mt-4">
+                    <SearchableDropdown
+                      label="เลือกรุ่นที่ต้องการเพิ่มไฟล์"
+                      placeholder="ค้นหารุ่น หรือโฟลเดอร์เก่า..."
+                      options={[
+                        // Recent folders (from models with variants)
+                        ...models.flatMap(m => 
+                          (m.variants || []).map(v => ({
+                            value: `${m.name}-${v.name}`,
+                            label: `${brands.find(b => b.id === m.brandId)?.name || ''} ${m.name} - ${v.name}`,
+                          }))
+                        ),
+                        // Add option to type custom batch ID
+                      ]}
+                      value={existingBatchId === 'placeholder' ? '' : existingBatchId}
+                      onChange={(value) => setExistingBatchId(value || 'placeholder')}
+                    />
+                    <p className="text-xs text-slate-500 mt-2">
+                      💡 เลือกจากรายการ หรือกด "➕ เพิ่มใหม่" แล้วพิมพ์ชื่อโฟลเดอร์
+                    </p>
+                  </div>
                 )}
               </div>
 
