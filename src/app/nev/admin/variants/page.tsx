@@ -7,6 +7,7 @@ interface Variant {
   id: string;
   name: string;
   fullName: string;
+  slug: string;
   priceBaht: number | null;
   batteryKwh: number | null;
   rangeKm: number | null;
