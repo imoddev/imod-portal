@@ -2,6 +2,34 @@
 
 All notable changes to the NEV Database system will be documented in this file.
 
+## [1.1.0] - 2026-03-11 19:00 (Asia/Bangkok)
+
+### Added
+- **Edit Variant Page** (`/nev/admin/variants/[id]`)
+  - Full form with all specs
+  - Save → Update database
+  - Audit logging
+  
+- **Import System** (`/nev/admin/import`)
+  - URL import (fetch + AI parse)
+  - File upload (drag & drop)
+  - Supported: PDF, DOC, DOCX, XLS, XLSX, JPG, PNG
+  
+- **AI Parsing (GLM-5)**
+  - Extracts specs from documents automatically
+  - Creates brand/model/variant if not exists
+  - Preview before confirm
+  
+- **Image → WebP Conversion**
+  - Auto-converts JPG/PNG to WebP
+  - Quality optimization (80%)
+
+- **Dependencies Added**
+  - sharp (image processing)
+  - pdf-parse (PDF extraction)
+  - mammoth (DOCX parsing)
+  - xlsx (Excel parsing)
+
 ## [1.0.1] - 2026-03-11 18:20 (Asia/Bangkok)
 
 ### Fixed
