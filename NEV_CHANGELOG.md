@@ -2,6 +2,44 @@
 
 All notable changes to the NEV Database system will be documented in this file.
 
+## [1.3.0] - 2026-03-11 19:55 (Asia/Bangkok)
+
+### Architecture Change 🏗️
+**Vercel → Mac Studio → AI Processing**
+
+**Added:**
+- **NEV Import Server** (Mac Studio, Port 3200)
+  - Express.js HTTP server
+  - Receives files from Vercel
+  - Saves to `/tmp/nev-import/batch-{timestamp}/`
+  - Triggers AI worker asynchronously
+  
+- **NEV Import Worker** (Background AI)
+  - PDF parsing ✅ (works on Mac Studio!)
+  - DOC/DOCX, XLS/XLSX, Images ✅
+  - AI extract specs (GLM-5)
+  - Merge specs from multiple files
+  - Save to database
+  - Discord notification (ID: 1478707742603612241)
+  
+- **Cloudflare Tunnel**
+  - nev-import.iphonemod.net → localhost:3200
+  - Tunnel: `imod-nev-import` (49a023d7)
+  - PM2: `cf-nev-import`, `nev-import-server`
+
+**Benefits:**
+- ✅ All file formats supported (PDF works!)
+- ✅ Fast response (async processing)
+- ✅ Discord notifications when complete
+- ✅ No serverless limitations
+
+**Workflow:**
+1. User uploads files → Vercel
+2. Vercel forwards → Mac Studio (https://nev-import.iphonemod.net)
+3. Mac Studio saves files + triggers AI worker
+4. AI worker processes in background
+5. Discord notification when done
+
 ## [1.2.0] - 2026-03-11 19:20 (Asia/Bangkok)
 
 ### Added
