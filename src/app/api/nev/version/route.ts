@@ -1,33 +1,17 @@
 import { NextResponse } from 'next/server';
-import { readFileSync } from 'fs';
-import { join } from 'path';
+
+// Version info (hardcoded for Vercel compatibility)
+const NEV_VERSION = '2.0.0';
+const NEV_RELEASE_DATE = '2026-03-12';
 
 export async function GET() {
-  try {
-    const versionPath = join(process.cwd(), 'NEV_VERSION.txt');
-    const changelogPath = join(process.cwd(), 'NEV_CHANGELOG.md');
-    
-    const version = readFileSync(versionPath, 'utf-8').trim();
-    const changelog = readFileSync(changelogPath, 'utf-8');
-    
-    // Extract latest version changes
-    const latestMatch = changelog.match(/## \[([\d.]+)\] - ([\d-]+.*?)\n\n([\s\S]*?)(?=\n##|\n---)/);
-    const latestChanges = latestMatch ? {
-      version: latestMatch[1],
-      date: latestMatch[2],
-      changes: latestMatch[3].trim(),
-    } : null;
-
-    return NextResponse.json({
-      version,
-      latest: latestChanges,
-      updatedAt: new Date().toISOString(),
-    });
-  } catch (error) {
-    console.error('Error reading version:', error);
-    return NextResponse.json(
-      { error: 'Failed to read version' },
-      { status: 500 }
-    );
-  }
+  return NextResponse.json({
+    version: NEV_VERSION,
+    latest: {
+      version: NEV_VERSION,
+      date: NEV_RELEASE_DATE,
+      changes: 'Schema V2.0 with 11 extended spec categories',
+    },
+    updatedAt: new Date().toISOString(),
+  });
 }

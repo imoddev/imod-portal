@@ -8,6 +8,8 @@ interface Variant {
   id: string;
   name: string;
   fullName: string;
+  slug: string;
+  imageUrl: string | null;
   priceBaht: number | null;
   priceNote: string | null;
   batteryKwh: number | null;
@@ -176,6 +178,45 @@ export default function EditVariantPage({ params }: { params: Promise<{ id: stri
                   onChange={e => updateField('priceBaht', e.target.value ? parseInt(e.target.value) : null)}
                   className="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-lg focus:border-blue-500 focus:outline-none"
                 />
+              </div>
+            </div>
+          </div>
+
+          {/* Featured Image */}
+          <div className="bg-gray-800 rounded-xl p-6 border border-gray-700">
+            <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+              <span className="w-1 h-6 bg-purple-500 rounded"></span>
+              รูปภาพ Featured
+            </h2>
+            <div className="grid md:grid-cols-2 gap-6">
+              <div>
+                <label className="block text-sm text-gray-400 mb-1">URL รูปภาพ</label>
+                <input
+                  type="url"
+                  placeholder="https://example.com/image.jpg"
+                  value={variant.imageUrl || ''}
+                  onChange={e => updateField('imageUrl', e.target.value || null)}
+                  className="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-lg focus:border-blue-500 focus:outline-none"
+                />
+                <p className="text-xs text-gray-500 mt-1">ใส่ URL รูปภาพสำหรับแสดงเป็น Featured Image ของรุ่นนี้</p>
+              </div>
+              <div>
+                {variant.imageUrl ? (
+                  <div className="relative aspect-video bg-gray-900 rounded-lg overflow-hidden">
+                    <img 
+                      src={variant.imageUrl} 
+                      alt={variant.name}
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src = 'https://placehold.co/640x360/1f2937/6b7280?text=Image+Error';
+                      }}
+                    />
+                  </div>
+                ) : (
+                  <div className="aspect-video bg-gray-900 rounded-lg flex items-center justify-center">
+                    <span className="text-gray-600 text-4xl">🖼️</span>
+                  </div>
+                )}
               </div>
             </div>
           </div>

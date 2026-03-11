@@ -732,6 +732,9 @@ model NevVariant {
   fullName     String            // BYD Dolphin Dynamic
   slug         String   @unique
   
+  // Image
+  imageUrl     String?           // Featured image URL
+  
   // Price
   priceBaht    Int?              // ราคา (บาท)
   priceNote    String?           // หมายเหตุราคา
