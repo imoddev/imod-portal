@@ -12,6 +12,16 @@ export default function ImportDataPage() {
   const [loading, setLoading] = useState(false);
   const [progress, setProgress] = useState('');
   const [preview, setPreview] = useState<any>(null);
+  
+  // Optional manual info
+  const [manualInfo, setManualInfo] = useState({
+    brand: '',
+    model: '',
+    variant: ''
+  });
+  
+  // Re-upload option
+  const [existingBatchId, setExistingBatchId] = useState('');
 
   const handleUrlSubmit = async () => {
     if (!url) return;
@@ -54,6 +64,14 @@ export default function ImportDataPage() {
     
     const formData = new FormData();
     files.forEach(file => formData.append('files', file));
+    
+    // Add manual info if provided
+    if (manualInfo.brand) formData.append('brand', manualInfo.brand);
+    if (manualInfo.model) formData.append('model', manualInfo.model);
+    if (manualInfo.variant) formData.append('variant', manualInfo.variant);
+    
+    // Add existing batch ID if re-uploading
+    if (existingBatchId) formData.append('existingBatchId', existingBatchId);
     
     try {
       setProgress('กำลังส่งไฟล์ไปยังเซิร์ฟเวอร์...');
@@ -197,7 +215,7 @@ export default function ImportDataPage() {
                   </div>
                   
                   {files.length > 0 && (
-                    <div className="mt-4 space-y-2">
+                    <div className="mt-4 space-y-4">
                       <p className="text-sm font-medium text-gray-700">ไฟล์ที่เลือก:</p>
                       <div className="max-h-40 overflow-y-auto space-y-1">
                         {files.map((f, i) => (
@@ -207,6 +225,63 @@ export default function ImportDataPage() {
                           </div>
                         ))}
                       </div>
+                      
+                      {/* Optional Manual Info */}
+                      <div className="border-t pt-4">
+                        <p className="text-sm font-medium text-gray-700 mb-2">ข้อมูลเพิ่มเติม (ไม่บังคับ)</p>
+                        <div className="grid grid-cols-3 gap-2">
+                          <input
+                            type="text"
+                            placeholder="แบรนด์ (เช่น BYD)"
+                            value={manualInfo.brand}
+                            onChange={e => setManualInfo({...manualInfo, brand: e.target.value})}
+                            className="px-3 py-2 border rounded text-sm"
+                          />
+                          <input
+                            type="text"
+                            placeholder="รุ่น (เช่น Seal)"
+                            value={manualInfo.model}
+                            onChange={e => setManualInfo({...manualInfo, model: e.target.value})}
+                            className="px-3 py-2 border rounded text-sm"
+                          />
+                          <input
+                            type="text"
+                            placeholder="รุ่นย่อย (เช่น Premium)"
+                            value={manualInfo.variant}
+                            onChange={e => setManualInfo({...manualInfo, variant: e.target.value})}
+                            className="px-3 py-2 border rounded text-sm"
+                          />
+                        </div>
+                        <p className="text-xs text-gray-500 mt-1">
+                          💡 ถ้าไม่ระบุ AI จะแยกข้อมูลให้อัตโนมัติ
+                        </p>
+                      </div>
+                      
+                      {/* Re-upload Option */}
+                      <div className="border-t pt-4">
+                        <label className="flex items-center gap-2 text-sm">
+                          <input
+                            type="checkbox"
+                            checked={!!existingBatchId}
+                            onChange={e => setExistingBatchId(e.target.checked ? 'placeholder' : '')}
+                            className="rounded"
+                          />
+                          <span className="font-medium text-gray-700">อัปโหลดเพิ่มไปยัง batch เดิม</span>
+                        </label>
+                        {existingBatchId && (
+                          <input
+                            type="text"
+                            placeholder="Batch ID (เช่น batch-1234567890)"
+                            value={existingBatchId === 'placeholder' ? '' : existingBatchId}
+                            onChange={e => setExistingBatchId(e.target.value)}
+                            className="mt-2 w-full px-3 py-2 border rounded text-sm"
+                          />
+                        )}
+                        <p className="text-xs text-gray-500 mt-1">
+                          💡 ใช้เมื่ออัปโหลดไฟล์ไม่ทันครั้งเดียว ไฟล์จะถูกเพิ่มไปยัง batch เดิม
+                        </p>
+                      </div>
+                      
                       {progress && (
                         <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-800">
                           {progress}

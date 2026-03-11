@@ -218,14 +218,14 @@ async function main() {
 }
 
 async function processFile(file) {
-  // Import helpers
+  // Import helpers (Node.js version)
   const {
     parsePDF,
     parseDOCX,
     parseExcel,
     extractSpecsWithAI,
     convertToWebP
-  } = require('../src/lib/nev-import-helpers');
+  } = require('./nev-import-helpers-node');
   
   let extractedText = '';
   let fileData = { filename: file.name, success: false };
