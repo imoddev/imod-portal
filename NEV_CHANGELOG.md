@@ -2,6 +2,39 @@
 
 All notable changes to the NEV Database system will be documented in this file.
 
+## [1.4.1] - 2026-03-11 20:45 (Asia/Bangkok)
+
+### Bug Fixes & Features 🔧
+
+**Fixed:**
+- **Worker Import Error** 🐛
+  - Error: `Cannot find module '../src/lib/nev-import-helpers'`
+  - Created: `nev-import-helpers-node.js` (pure Node.js version)
+  - Worker now imports correctly (no TypeScript/Next.js dependency)
+
+**Added:**
+- **Manual Info Fields** (Optional)
+  - Brand, Model, Variant input fields
+  - AI auto-extracts if not provided
+  - Useful when AI extraction fails or for accuracy
+  
+- **Re-upload Option**
+  - Checkbox: "อัปโหลดเพิ่มไปยัง batch เดิม"
+  - Enter existing Batch ID
+  - Append files to same batch
+  - **Use case:** When files are too many for single upload (>10 files limit)
+
+**UI Improvements:**
+- Manual info grid (3 fields: Brand, Model, Variant)
+- Re-upload checkbox + Batch ID input
+- Help text: "AI จะแยกข้อมูลให้อัตโนมัติ"
+- Better form layout and spacing
+
+**Backend:**
+- FormData now includes: brand, model, variant, existingBatchId
+- Mac Studio server restarted with fixes
+- Worker uses pure Node.js modules
+
 ## [1.4.0] - 2026-03-11 20:30 (Asia/Bangkok)
 
 ### Discord Thread Progress Updates 📊
