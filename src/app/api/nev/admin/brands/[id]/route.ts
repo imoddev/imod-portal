@@ -5,11 +5,12 @@ import { createAuditLog } from '@/lib/nev-audit';
 // GET - Get single brand
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const brand = await prisma.nevBrand.findUnique({
-      where: { id: params.id },
+      where: { id },
       include: {
         models: {
           include: {
@@ -36,14 +37,15 @@ export async function GET(
 // PUT - Update brand
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const body = await request.json();
     const { name, nameTh, logoUrl, country, website } = body;
 
     const existing = await prisma.nevBrand.findUnique({
-      where: { id: params.id },
+      where: { id },
     });
 
     if (!existing) {
@@ -51,7 +53,7 @@ export async function PUT(
     }
 
     const brand = await prisma.nevBrand.update({
-      where: { id: params.id },
+      where: { id },
       data: {
         name,
         nameTh,
@@ -84,11 +86,12 @@ export async function PUT(
 // DELETE - Delete brand
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const existing = await prisma.nevBrand.findUnique({
-      where: { id: params.id },
+      where: { id },
       include: { _count: { select: { models: true } } },
     });
 
@@ -104,14 +107,14 @@ export async function DELETE(
     }
 
     await prisma.nevBrand.delete({
-      where: { id: params.id },
+      where: { id },
     });
 
     // Audit log
     await createAuditLog({
       action: 'DELETE',
       entityType: 'BRAND',
-      entityId: params.id,
+      entityId: id,
       userName: 'Admin',
       changes: existing,
     });
