@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * NEV Import Server - Mac Studio
- * Receives files from Vercel, saves to /tmp, triggers AI processing
+ * Receives files from Vercel, saves to Desktop, triggers AI processing
  */
 
 const express = require('express');
@@ -26,34 +26,29 @@ function generateFolderName(brand, model, variant) {
   if (brand && model) {
     const parts = [date, brand, model];
     if (variant) parts.push(variant);
-    return parts.join('-').replace(/[^a-zA-Z0-9-]/g, '-'); // Clean filename
+    // Clean filename: remove special chars except hyphen
+    return parts.join('-').replace(/[^a-zA-Z0-9-]/g, '-');
   }
   
   // Fallback: date + timestamp
   return `${date}-batch-${Date.now()}`;
 }
 
-// Multer storage config
+// Multer storage config (simple - rename after upload)
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    // Get manual info from request
-    const brand = req.body.brand || '';
-    const model = req.body.model || '';
-    const variant = req.body.variant || '';
-    const existingBatchId = req.body.existingBatchId || '';
+    // Use temp folder first
+    const tempBatchId = `temp-${Date.now()}`;
+    const tempDir = path.join(UPLOAD_DIR, tempBatchId);
     
-    // Use existing batch ID if re-uploading
-    const batchId = existingBatchId || generateFolderName(brand, model, variant);
-    const batchDir = path.join(UPLOAD_DIR, batchId);
-    
-    if (!fs.existsSync(batchDir)) {
-      fs.mkdirSync(batchDir, { recursive: true });
+    if (!fs.existsSync(tempDir)) {
+      fs.mkdirSync(tempDir, { recursive: true });
     }
     
-    // Store batchId in req for later use
-    req.batchId = batchId;
+    // Store in req for later
+    req.tempBatchId = tempBatchId;
     
-    cb(null, batchDir);
+    cb(null, tempDir);
   },
   filename: (req, file, cb) => {
     cb(null, file.originalname);
@@ -82,33 +77,45 @@ app.get('/health', (req, res) => {
 app.post('/nev/import', upload.array('files', 10), async (req, res) => {
   try {
     const files = req.files;
-    const batchId = req.batchId || `batch-${Date.now()}`; // From multer storage
+    const tempBatchId = req.tempBatchId;
     
     if (!files || files.length === 0) {
       return res.status(400).json({ error: 'No files uploaded' });
     }
     
-    console.log(`[NEV Import] Received ${files.length} files (${batchId})`);
+    console.log(`[NEV Import] Received ${files.length} files`);
+    console.log(`[NEV Import] Manual info: brand="${req.body.brand}" model="${req.body.model}" variant="${req.body.variant}"`);
     
-    const batchDir = path.join(UPLOAD_DIR, batchId);
+    const tempDir = path.join(UPLOAD_DIR, tempBatchId);
+    
+    // Generate final folder name
+    const brand = req.body.brand || '';
+    const model = req.body.model || '';
+    const variant = req.body.variant || '';
+    const finalBatchId = generateFolderName(brand, model, variant);
+    const finalDir = path.join(UPLOAD_DIR, finalBatchId);
+    
+    // Rename temp folder → final folder
+    console.log(`[NEV Import] Renaming: ${tempBatchId} → ${finalBatchId}`);
+    fs.renameSync(tempDir, finalDir);
     
     // Create metadata file
     const metadata = {
-      batchId,
+      batchId: finalBatchId,
       timestamp: new Date().toISOString(),
       fileCount: files.length,
       totalSize: files.reduce((sum, f) => sum + f.size, 0),
       files: files.map(f => ({
         name: f.originalname,
         size: f.size,
-        path: f.path,
+        path: f.path.replace(tempBatchId, finalBatchId),
         mimetype: f.mimetype
       })),
-      // Manual info (if provided)
+      // Manual info
       manualInfo: {
-        brand: req.body.brand || null,
-        model: req.body.model || null,
-        variant: req.body.variant || null
+        brand: brand || null,
+        model: model || null,
+        variant: variant || null
       },
       status: 'pending',
       uploadedBy: req.body.userId || 'vercel-upload',
@@ -117,48 +124,61 @@ app.post('/nev/import', upload.array('files', 10), async (req, res) => {
     };
     
     fs.writeFileSync(
-      path.join(batchDir, 'metadata.json'),
+      path.join(finalDir, 'metadata.json'),
       JSON.stringify(metadata, null, 2)
     );
     
-    console.log(`[NEV Import] Saved metadata: ${batchDir}/metadata.json`);
+    console.log(`[NEV Import] Metadata saved: ${finalDir}/metadata.json`);
     
-    // Trigger AI worker (async - don't wait)
-    triggerAIWorker(batchId).catch(err => {
-      console.error(`[NEV Import] Worker trigger error:`, err);
+    // Trigger AI worker (async)
+    triggerAIWorker(finalBatchId).catch(err => {
+      console.error(`[NEV Import] Worker error:`, err);
     });
     
     res.json({
       success: true,
-      batchId,
+      batchId: finalBatchId,
       fileCount: files.length,
       message: 'ไฟล์อัปโหลดสำเร็จ! AI Agent กำลังประมวลผล...',
-      batchDir
+      batchDir: finalDir
     });
-  } catch (error) {
-    console.error('[NEV Import] Error:', error);
-    res.status(500).json({ 
-      error: 'Upload failed', 
-      details: error.message 
-    });
+  } catch (err) {
+    console.error('[NEV Import] Error:', err);
+    res.status(500).json({ error: err.message });
   }
 });
 
-// Trigger AI worker
-async function triggerAIWorker(batchId) {
-  console.log(`[NEV Import] Triggering AI worker for ${batchId}...`);
-  
-  const workerScript = path.join(__dirname, 'nev-import-worker.js');
-  
-  exec(`node ${workerScript} ${batchId}`, (error, stdout, stderr) => {
-    if (error) {
-      console.error(`[NEV Import] Worker error:`, error);
-      return;
-    }
-    if (stderr) {
-      console.error(`[NEV Import] Worker stderr:`, stderr);
-    }
-    console.log(`[NEV Import] Worker stdout:`, stdout);
+// Trigger AI Worker
+function triggerAIWorker(batchId) {
+  return new Promise((resolve, reject) => {
+    const workerPath = path.join(__dirname, 'nev-import-worker.js');
+    const cmd = `node ${workerPath} ${batchId}`;
+    
+    console.log(`[NEV Import] Triggering worker: ${cmd}`);
+    
+    const child = exec(cmd);
+    
+    child.stdout.on('data', data => {
+      console.log(`[NEV Import] Worker stdout: ${data.trim()}`);
+    });
+    
+    child.stderr.on('data', data => {
+      console.error(`[NEV Import] Worker stderr: ${data.trim()}`);
+    });
+    
+    child.on('error', err => {
+      console.error('[NEV Import] Worker error:', err);
+      reject(err);
+    });
+    
+    child.on('exit', (code) => {
+      if (code === 0) {
+        console.log(`[NEV Import] Worker completed: ${batchId}`);
+        resolve();
+      } else {
+        reject(new Error(`Worker exited with code ${code}`));
+      }
+    });
   });
 }
 
@@ -167,10 +187,4 @@ app.listen(PORT, () => {
   console.log(`🚀 NEV Import Server running on http://localhost:${PORT}`);
   console.log(`📁 Upload directory: ${UPLOAD_DIR}`);
   console.log(`✅ Ready to receive files from Vercel`);
-});
-
-// Graceful shutdown
-process.on('SIGTERM', () => {
-  console.log('SIGTERM received, shutting down...');
-  process.exit(0);
 });
