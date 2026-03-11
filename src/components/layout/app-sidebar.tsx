@@ -47,6 +47,7 @@ import {
   CalendarRange,
   UserCircle,
   Shield,
+  BarChart2,
 } from "lucide-react";
 
 // Menu items with access requirements
@@ -70,6 +71,7 @@ const allMenuItems = [
   // Manager+ only
   { title: "Timesheet", url: "/timesheet", icon: Clock, group: "manager", minRole: "lead" },
   { title: "Content Calendar", url: "/content-calendar", icon: CalendarRange, group: "manager", minRole: "lead" },
+  { title: "Content KPI", url: "/content-kpi", icon: BarChart2, group: "manager", minRole: "lead" },
   { title: "Analytics", url: "/analytics", icon: FileBarChart, group: "manager", minRole: "manager" },
   { title: "Assets", url: "/assets", icon: Package, group: "manager", minRole: "manager" },
   { title: "Reports", url: "/report", icon: FileBarChart, group: "manager", minRole: "manager" },
@@ -85,6 +87,7 @@ const allMenuItems = [
   
   // Admin only
   { title: "HR Admin", url: "/hr/admin", icon: Briefcase, group: "admin", minRole: "manager" },
+  { title: "Token Monitor", url: "/admin/monitoring", icon: BarChart2, group: "admin", minRole: "admin" },
   { title: "Audit Log", url: "/audit", icon: Shield, group: "admin", minRole: "admin" },
   { title: "Settings", url: "/settings", icon: Settings, group: "admin", minRole: "admin" },
 ];

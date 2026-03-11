@@ -4,6 +4,45 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.1.2] - 2026-03-09
+
+### 📊 Token Monitoring Dashboard (by White)
+
+**New Feature: `/admin/monitoring`**
+- Real-time token usage from OpenClaw session logs
+- Daily usage bar chart (stacked: output/input/cache)
+- Token type breakdown (pie chart)
+- Usage by agent table
+- Usage by model table
+- Filter by date range (7/14/30 days)
+- Filter by agent
+- Estimated cost calculation (USD)
+
+**API: `GET /api/admin/usage`**
+- Reads from `~/.openclaw/agents/*/sessions/*.jsonl`
+- Aggregates by date, agent, model
+- Returns totals and breakdowns
+
+**Permissions**
+- Admin-only access (`/admin/monitoring`)
+- Added to sidebar under Admin section
+
+---
+
+## [0.1.1] - 2026-03-09
+
+### 🌐 Infrastructure
+
+**Cloudflare Tunnel Setup** (by White)
+- Created tunnel `imod-portal` (ID: ba735bd5-41d1-483f-8f5f-9b557124c1f5)
+- Configured DNS: `basement.iphonemod.net` → localhost:3000
+- Added PM2 process: `cf-imod-portal`
+- Config file: `~/.cloudflared/config-imod-portal.yml`
+
+Portal now accessible at: https://basement.iphonemod.net
+
+---
+
 ## [0.1.0] - 2026-03-03
 
 ### 🎉 Initial Release

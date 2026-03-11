@@ -72,31 +72,15 @@ const leaveTypeColors: Record<string, string> = {
   annual: "text-green-500 bg-green-500/10",
 };
 
-// Mock events (ในอนาคตดึงจาก API)
-const mockEvents: Event[] = [
-  {
-    id: "1",
-    title: "ประชุมทีม Content",
-    time: "10:00",
-    type: "meeting",
-    location: "ห้องประชุม A",
-    attendees: ["พี่เต็นท์", "พี่ซา", "บัยคุน"],
-  },
-  {
-    id: "2",
-    title: "ถ่าย Review BYD Sealion 7",
-    time: "09:00",
-    type: "shooting",
-    location: "BYD Showroom",
-    attendees: ["Art", "KK"],
-  },
-];
+// API URL for calendar events
+const CALENDAR_API = "https://shorts-api.iphonemod.net";
 
 export default function CalendarDatePage({ params }: { params: Promise<{ date: string }> }) {
   const resolvedParams = use(params);
   const dateStr = resolvedParams.date;
   
   const [leaves, setLeaves] = useState<LeaveRequest[]>([]);
+  const [events, setEvents] = useState<Event[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   const dateObj = new Date(dateStr);
@@ -112,9 +96,9 @@ export default function CalendarDatePage({ params }: { params: Promise<{ date: s
       setIsLoading(true);
       try {
         // Fetch approved leaves
-        const res = await fetch("/api/hr/leave?status=approved");
-        if (res.ok) {
-          const data = await res.json();
+        const leaveRes = await fetch("/api/hr/leave?status=approved");
+        if (leaveRes.ok) {
+          const data = await leaveRes.json();
           // Filter leaves that include this date
           const filtered = (data.requests || []).filter((leave: LeaveRequest) => {
             const start = new Date(leave.startDate);
@@ -124,6 +108,22 @@ export default function CalendarDatePage({ params }: { params: Promise<{ date: s
           });
           setLeaves(filtered);
         }
+
+        // Fetch calendar events
+        const eventsRes = await fetch(`${CALENDAR_API}/calendar-events`);
+        if (eventsRes.ok) {
+          const allEvents = await eventsRes.json();
+          // Filter events for this date
+          const dateEvents = allEvents.filter((e: any) => e.date === dateStr);
+          setEvents(dateEvents.map((e: any) => ({
+            id: e.id,
+            title: e.title,
+            time: e.startTime || e.time,
+            type: e.type || "event",
+            location: e.location,
+            attendees: e.attendees || [],
+          })));
+        }
       } catch (e) {
         console.error("Error:", e);
       } finally {
@@ -132,9 +132,6 @@ export default function CalendarDatePage({ params }: { params: Promise<{ date: s
     };
     fetchData();
   }, [dateStr]);
-
-  // Get events for this date (mock)
-  const events = mockEvents;
 
   // Stats
   const onLeaveCount = leaves.length;

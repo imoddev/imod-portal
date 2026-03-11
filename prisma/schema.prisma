@@ -621,3 +621,229 @@ model LateSummary {
   @@unique([employeeId, year, month])
   @@index([employeeId])
 }
+
+// Calendar Events - กิจกรรมในปฏิทิน
+model CalendarEvent {
+  id           String   @id @default(cuid())
+  
+  title        String
+  date         DateTime
+  endDate      DateTime?
+  time         String?
+  type         String   @default("event") // meeting, shooting, deadline, event
+  location     String?
+  attendees    String[] // Array of names
+  description  String?
+  
+  createdBy    String?  // User ID who created
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([date])
+  @@index([type])
+}
+
+// ========== NEV Database v1.0.0-beta.1 ==========
+// เพิ่มเมื่อ: 2026-03-11
+// Developer: AJ White (Lucus #008)
+
+// NEV Brand - แบรนด์รถยนต์
+model NevBrand {
+  id           String   @id @default(cuid())
+  
+  name         String   @unique  // BYD, Tesla, MG
+  nameTh       String?           // ชื่อภาษาไทย
+  slug         String   @unique  // byd, tesla, mg
+  
+  logoUrl      String?
+  country      String?           // China, USA, Thailand
+  website      String?
+  
+  // Stats
+  totalModels  Int      @default(0)
+  
+  isActive     Boolean  @default(true)
+  
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  models       NevModel[]
+
+  @@index([isActive])
+}
+
+// NEV Model - รุ่นรถ (เช่น BYD Dolphin, Tesla Model 3)
+model NevModel {
+  id           String   @id @default(cuid())
+  
+  brandId      String
+  
+  name         String            // Dolphin, Model 3
+  nameTh       String?
+  slug         String   @unique  // byd-dolphin, tesla-model-3
+  fullName     String?           // BYD Dolphin Dynamic
+  
+  year         Int?              // Model Year (2026)
+  
+  // Vehicle Type
+  bodyType     String?           // Hatchback, Sedan, SUV, MPV, Pickup
+  segment      String?           // A, B, C, D, E
+  seats        Int?              // 5, 7
+  
+  // Powertrain
+  powertrain   String            // BEV, PHEV, HEV, REEV, ICE
+  
+  // Assembly
+  assembly     String?           // CKD, CBU
+  madeIn       String?           // Thailand, China
+  
+  // Media
+  imageUrl     String?
+  galleryUrls  String[]          // Array of image URLs
+  youtubeId    String?           // YouTube video ID
+  
+  // Description
+  overview     String?           // คำอธิบายรวม
+  highlights   String[]          // จุดเด่น
+  
+  // Status
+  isActive     Boolean  @default(true)
+  isNewModel   Boolean  @default(false)  // รุ่นใหม่
+  launchDate   DateTime?
+  
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  brand        NevBrand @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  variants     NevVariant[]
+
+  @@index([brandId])
+  @@index([powertrain])
+  @@index([isActive])
+}
+
+// NEV Variant - รุ่นย่อย (เช่น Dolphin Dynamic, Dolphin Extended Range)
+model NevVariant {
+  id           String   @id @default(cuid())
+  
+  modelId      String
+  
+  name         String            // Dynamic, Extended Range, Performance AWD
+  fullName     String            // BYD Dolphin Dynamic
+  slug         String   @unique
+  
+  // Price
+  priceBaht    Int?              // ราคา (บาท)
+  priceNote    String?           // หมายเหตุราคา
+  
+  // Battery & Range
+  batteryKwh   Float?            // ความจุแบตเตอรี่ (kWh)
+  rangeKm      Int?              // ระยะทาง (กม.)
+  rangeStandard String?          // CLTC, WLTP, NEDC
+  
+  // Motor
+  motorCount   Int      @default(1)  // จำนวนมอเตอร์
+  motorKw      Float?            // กำลังมอเตอร์รวม (kW)
+  motorHp      Int?              // แรงม้า
+  torqueNm     Int?              // แรงบิด (Nm)
+  
+  // Performance
+  topSpeedKmh  Int?              // ความเร็วสูงสุด (km/h)
+  accel0100    Float?            // 0-100 km/h (วินาที)
+  
+  // Drivetrain
+  drivetrain   String?           // FWD, RWD, AWD
+  
+  // Charging
+  dcChargeKw   Float?            // DC Fast Charge (kW)
+  dcChargeMin  Int?              // 10-80% (นาที)
+  acChargeKw   Float?            // AC Charge (kW)
+  chargePort   String?           // CCS2, GB/T, Tesla
+  
+  // PHEV/HEV specific
+  engineCc     Int?              // ความจุเครื่องยนต์ (cc)
+  engineHp     Int?              // แรงม้าเครื่องยนต์
+  combinedHp   Int?              // แรงม้ารวม
+  fuelTankL    Int?              // ความจุถังน้ำมัน (L)
+  fuelConsumption Float?         // อัตราสิ้นเปลือง (km/L)
+  
+  // Dimensions
+  lengthMm     Int?
+  widthMm      Int?
+  heightMm     Int?
+  wheelbaseMm  Int?
+  groundClearanceMm Int?
+  curbWeightKg Int?
+  grossWeightKg Int?
+  trunkLitres  Int?
+  
+  // Warranty
+  warrantyVehicle   String?      // 5 ปี / 150,000 กม.
+  warrantyBattery   String?      // 8 ปี / 160,000 กม.
+  
+  // Features (stored as JSON)
+  features     String?           // JSON: { "adas": [...], "safety": [...], "comfort": [...] }
+  
+  // V2L / V2G
+  hasV2l       Boolean  @default(false)
+  v2lKw        Float?
+  hasV2g       Boolean  @default(false)
+  
+  // Status
+  isActive     Boolean  @default(true)
+  isBestSeller Boolean  @default(false)
+  
+  // Data source tracking
+  dataSource   String?           // excel, manual, api
+  lastVerified DateTime?
+  
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  model        NevModel @relation(fields: [modelId], references: [id], onDelete: Cascade)
+
+  @@index([modelId])
+  @@index([priceBaht])
+  @@index([rangeKm])
+  @@index([isActive])
+}
+
+// NEV Data Version - ติดตามการอัปเดตข้อมูล
+model NevDataVersion {
+  id           String   @id @default(cuid())
+  
+  version      String            // 1.0.0-beta.1
+  releaseNotes String?           // What changed
+  
+  totalBrands  Int      @default(0)
+  totalModels  Int      @default(0)
+  totalVariants Int     @default(0)
+  
+  importedFrom String?           // excel, google-sheets, api
+  importedBy   String?           // User ID
+  importedAt   DateTime @default(now())
+  
+  createdAt    DateTime @default(now())
+
+  @@index([version])
+}
+
+// NEV Audit Log - ติดตามการแก้ไขข้อมูล
+model NevAuditLog {
+  id           String   @id @default(cuid())
+  
+  userId       String?
+  userName     String?
+  
+  action       String            // create, update, delete, import
+  targetType   String            // brand, model, variant
+  targetId     String
+  targetName   String?
+  
+  changes      String?           // JSON: { field: { old: x, new: y } }
+  
+  createdAt    DateTime @default(now())
+
+  @@index([targetType, targetId])
+  @@index([createdAt])
+}

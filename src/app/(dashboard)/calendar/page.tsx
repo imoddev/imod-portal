@@ -1,9 +1,27 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Calendar as CalendarIcon,
   ChevronLeft,
@@ -19,6 +37,9 @@ import {
   Heart,
   Briefcase,
   ExternalLink,
+  Pencil,
+  Trash2,
+  Loader2,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 
@@ -49,49 +70,8 @@ const leaveTypeIcons: Record<string, any> = {
 };
 
 // Mock events
-const mockEvents: Event[] = [
-  {
-    id: "1",
-    title: "ประชุมทีม Content",
-    date: "2026-03-03",
-    time: "10:00",
-    type: "meeting",
-    location: "ห้องประชุม A",
-    attendees: ["พี่เต็นท์", "พี่ซา", "บัยคุน"],
-  },
-  {
-    id: "2",
-    title: "ถ่าย Review BYD Sealion 7",
-    date: "2026-03-05",
-    time: "09:00",
-    type: "shooting",
-    location: "BYD Showroom",
-    attendees: ["Art", "KK"],
-  },
-  {
-    id: "3",
-    title: "Deadline: บทความ iPhone 17",
-    date: "2026-03-04",
-    type: "deadline",
-  },
-  {
-    id: "4",
-    title: "งานเปิดตัว OMODA",
-    date: "2026-03-10",
-    time: "14:00",
-    type: "event",
-    location: "Central World",
-    attendees: ["พี่มิว", "Art"],
-  },
-  {
-    id: "5",
-    title: "ประชุม Revenue Team",
-    date: "2026-03-03",
-    time: "14:00",
-    type: "meeting",
-    attendees: ["พี่มิว", "พี่อาย", "น้องสา"],
-  },
-];
+// API URL for calendar events
+const CALENDAR_API = "https://shorts-api.iphonemod.net";
 
 const daysOfWeek = ["อา", "จ", "อ", "พ", "พฤ", "ศ", "ส"];
 const monthNames = [
@@ -112,10 +92,209 @@ export default function CalendarPage() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [leaveEvents, setLeaveEvents] = useState<Event[]>([]);
-  const [allEvents, setAllEvents] = useState<Event[]>(mockEvents);
+  const [calendarEvents, setCalendarEvents] = useState<Event[]>([]);
+  const [allEvents, setAllEvents] = useState<Event[]>([]);
   const [activeFilters, setActiveFilters] = useState<string[]>(["all"]);
   const router = useRouter();
 
+  // Dialog state
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editingEvent, setEditingEvent] = useState<Event | null>(null);
+  const [saving, setSaving] = useState(false);
+  
+  // Form state
+  const [formData, setFormData] = useState({
+    title: "",
+    date: "",
+    endDate: "",
+    startTime: "",
+    endTime: "",
+    type: "event" as Event["type"],
+    location: "",
+    attendees: [] as string[],
+  });
+  
+  // Team members for autocomplete
+  const [teamMembers, setTeamMembers] = useState<{id: string; name: string; role: string}[]>([]);
+  const [showAttendeeList, setShowAttendeeList] = useState(false);
+  
+  // API base URL
+  const API_URL = "https://shorts-api.iphonemod.net";
+
+  // Load team members
+  useEffect(() => {
+    fetch(`${API_URL}/team-members`)
+      .then(res => res.json())
+      .then(data => setTeamMembers(data))
+      .catch(() => {});
+  }, []);
+
+  // Load calendar events from API
+  useEffect(() => {
+    fetch(`${API_URL}/calendar-events`)
+      .then(res => res.json())
+      .then(data => {
+        const events: Event[] = data.map((e: any) => ({
+          id: e.id,
+          title: e.title,
+          date: e.date,
+          endDate: e.endDate,
+          time: e.startTime || e.time,
+          type: e.type || "event",
+          location: e.location,
+          attendees: e.attendees || [],
+        }));
+        setCalendarEvents(events);
+      })
+      .catch(() => {});
+  }, []);
+
+  // Merge calendar events and leave events
+  useEffect(() => {
+    setAllEvents([...calendarEvents, ...leaveEvents]);
+  }, [calendarEvents, leaveEvents]);
+
+  // Reset form
+  const resetForm = () => {
+    setFormData({
+      title: "",
+      date: selectedDate || new Date().toISOString().split("T")[0],
+      endDate: "",
+      startTime: "",
+      endTime: "",
+      type: "event",
+      location: "",
+      attendees: [],
+    });
+    setEditingEvent(null);
+  };
+
+  // Open dialog for new event
+  const handleAddEvent = () => {
+    resetForm();
+    setDialogOpen(true);
+  };
+
+  // Open dialog for editing
+  const handleEditEvent = (event: Event) => {
+    setEditingEvent(event);
+    setFormData({
+      title: event.title,
+      date: event.date,
+      endDate: event.endDate || "",
+      startTime: event.time || "",
+      endTime: "",
+      type: event.type,
+      location: event.location || "",
+      attendees: event.attendees || [],
+    });
+    setDialogOpen(true);
+  };
+
+  // Save event (create or update)
+  const handleSaveEvent = async () => {
+    if (!formData.title || !formData.date) {
+      alert("กรุณากรอกชื่อและวันที่");
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const eventData = {
+        ...formData,
+        time: formData.startTime, // For backward compatibility
+      };
+
+      if (editingEvent) {
+        // Update existing event
+        const res = await fetch(`${API_URL}/calendar-events/${editingEvent.id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(eventData),
+        });
+        if (!res.ok) throw new Error("Failed to update event");
+        const updated = await res.json();
+        setCalendarEvents((prev) =>
+          prev.map((e) => (e.id === editingEvent.id ? { ...e, ...updated } : e))
+        );
+        alert("แก้ไขกิจกรรมสำเร็จ ✅");
+      } else {
+        // Create new event
+        const res = await fetch(`${API_URL}/calendar-events`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(eventData),
+        });
+        if (!res.ok) throw new Error("Failed to create event");
+        const newEvent = await res.json();
+        // Map to Event format
+        const eventToAdd: Event = {
+          id: newEvent.id,
+          title: newEvent.title,
+          date: newEvent.date,
+          endDate: newEvent.endDate,
+          time: newEvent.startTime || newEvent.time,
+          type: newEvent.type || "event",
+          location: newEvent.location,
+          attendees: newEvent.attendees || [],
+        };
+        setCalendarEvents((prev) => [...prev, eventToAdd]);
+        alert("เพิ่มกิจกรรมสำเร็จ ✅ แจ้งเตือนไป Townhall แล้ว");
+      }
+
+      setDialogOpen(false);
+      resetForm();
+    } catch (error) {
+      alert("เกิดข้อผิดพลาด กรุณาลองใหม่");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // Delete event
+  const handleDeleteEvent = async (eventId: string) => {
+    if (!confirm("ต้องการลบกิจกรรมนี้หรือไม่?")) return;
+
+    try {
+      const res = await fetch(`${API_URL}/calendar-events/${eventId}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) throw new Error("Failed to delete");
+      setCalendarEvents((prev) => prev.filter((e) => e.id !== eventId));
+      alert("ลบกิจกรรมสำเร็จ ✅");
+    } catch (error) {
+      alert("เกิดข้อผิดพลาดในการลบ");
+    }
+  };
+  
+  // Toggle attendee selection
+  const toggleAttendee = (name: string) => {
+    setFormData(prev => ({
+      ...prev,
+      attendees: prev.attendees.includes(name)
+        ? prev.attendees.filter(a => a !== name)
+        : [...prev.attendees, name]
+    }));
+  };
+
+  // Long press for mobile
+  const longPressTimer = useRef<NodeJS.Timeout | null>(null);
+  
+  const handleTouchStart = (event: Event) => {
+    if (event.type === "leave") return;
+    longPressTimer.current = setTimeout(() => {
+      handleEditEvent(event);
+    }, 500); // 500ms long press
+  };
+  
+  const handleTouchEnd = () => {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+  };
+
+  // Fetch approved leaves
   // Fetch approved leaves
   useEffect(() => {
     const fetchLeaves = async () => {
@@ -133,7 +312,6 @@ export default function CalendarPage() {
             attendees: [leave.employeeName],
           }));
           setLeaveEvents(leaves);
-          setAllEvents([...mockEvents, ...leaves]);
         }
       } catch (e) {
         console.error("Error fetching leaves:", e);
@@ -234,7 +412,7 @@ export default function CalendarPage() {
             ปฏิทินงานและกิจกรรม
           </p>
         </div>
-        <Button>
+        <Button onClick={handleAddEvent}>
           <Plus className="h-4 w-4 mr-2" />
           เพิ่มกิจกรรม
         </Button>
@@ -367,8 +545,18 @@ export default function CalendarPage() {
                     const config = eventTypeConfig[event.type];
                     const Icon = config.icon;
                     
+                    // Don't show edit/delete for leave events
+                    const isLeaveEvent = event.type === "leave";
+                    
                     return (
-                      <div key={event.id} className="p-3 rounded-lg border">
+                      <div 
+                        key={event.id} 
+                        className="p-3 rounded-lg border group hover:border-primary/50 transition-colors cursor-pointer select-none"
+                        onDoubleClick={() => !isLeaveEvent && handleEditEvent(event)}
+                        onTouchStart={() => handleTouchStart(event)}
+                        onTouchEnd={handleTouchEnd}
+                        onTouchCancel={handleTouchEnd}
+                      >
                         <div className="flex items-start gap-2">
                           <div className={`p-1.5 rounded ${config.color}`}>
                             <Icon className="h-4 w-4" />
@@ -394,6 +582,26 @@ export default function CalendarPage() {
                               </p>
                             )}
                           </div>
+                          {!isLeaveEvent && (
+                            <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7"
+                                onClick={() => handleEditEvent(event)}
+                              >
+                                <Pencil className="h-3 w-3" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7 text-destructive hover:text-destructive"
+                                onClick={() => handleDeleteEvent(event.id)}
+                              >
+                                <Trash2 className="h-3 w-3" />
+                              </Button>
+                            </div>
+                          )}
                         </div>
                       </div>
                     );
@@ -427,6 +635,150 @@ export default function CalendarPage() {
           </Card>
         </div>
       </div>
+
+      {/* Add/Edit Event Dialog */}
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              {editingEvent ? "แก้ไขกิจกรรม" : "เพิ่มกิจกรรมใหม่"}
+            </DialogTitle>
+            <DialogDescription>
+              กรอกรายละเอียดกิจกรรม
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="title">ชื่อกิจกรรม *</Label>
+              <Input
+                id="title"
+                value={formData.title}
+                onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                placeholder="เช่น ประชุมทีม Content"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="date">วันที่เริ่ม *</Label>
+                <Input
+                  id="date"
+                  type="date"
+                  value={formData.date}
+                  onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="endDate">วันที่สิ้นสุด</Label>
+                <Input
+                  id="endDate"
+                  type="date"
+                  value={formData.endDate}
+                  onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="startTime">เวลาเริ่ม</Label>
+                <Input
+                  id="startTime"
+                  type="time"
+                  value={formData.startTime}
+                  onChange={(e) => setFormData({ ...formData, startTime: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="endTime">เวลาจบ</Label>
+                <Input
+                  id="endTime"
+                  type="time"
+                  value={formData.endTime}
+                  onChange={(e) => setFormData({ ...formData, endTime: e.target.value })}
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="type">ประเภท</Label>
+                <Select
+                  value={formData.type}
+                  onValueChange={(value) => setFormData({ ...formData, type: value as Event["type"] })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="meeting">ประชุม</SelectItem>
+                    <SelectItem value="shooting">ถ่ายทำ</SelectItem>
+                    <SelectItem value="deadline">Deadline</SelectItem>
+                    <SelectItem value="event">Event</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="location">สถานที่</Label>
+                <Input
+                  id="location"
+                  value={formData.location}
+                  onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                  placeholder="เช่น ห้องประชุม A"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label>ผู้เข้าร่วม</Label>
+              <div 
+                className="border rounded-md p-2 min-h-[40px] cursor-pointer flex flex-wrap gap-1"
+                onClick={() => setShowAttendeeList(!showAttendeeList)}
+              >
+                {formData.attendees.length === 0 ? (
+                  <span className="text-muted-foreground text-sm">คลิกเพื่อเลือกผู้เข้าร่วม...</span>
+                ) : (
+                  formData.attendees.map(name => (
+                    <Badge key={name} variant="secondary" className="text-xs">
+                      {name}
+                    </Badge>
+                  ))
+                )}
+              </div>
+              {showAttendeeList && (
+                <div className="border rounded-md p-2 max-h-40 overflow-y-auto space-y-1">
+                  {teamMembers.map(member => (
+                    <label
+                      key={member.id}
+                      className="flex items-center gap-2 p-1 hover:bg-muted rounded cursor-pointer"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={formData.attendees.includes(member.name)}
+                        onChange={() => toggleAttendee(member.name)}
+                        className="rounded"
+                      />
+                      <span className="text-sm">{member.name}</span>
+                      <span className="text-xs text-muted-foreground">({member.role})</span>
+                    </label>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDialogOpen(false)}>
+              ยกเลิก
+            </Button>
+            <Button onClick={handleSaveEvent} disabled={saving}>
+              {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              {editingEvent ? "บันทึก" : "เพิ่มกิจกรรม"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

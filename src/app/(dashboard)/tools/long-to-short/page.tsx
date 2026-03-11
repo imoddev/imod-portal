@@ -1,4 +1,5 @@
 "use client";
+import { useSession } from "next-auth/react";
 
 import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -75,6 +76,9 @@ interface JobStatus {
 }
 
 export default function LongToShortPage() {
+  const { data: session } = useSession();
+  const [versionInfo, setVersionInfo] = useState<any>(null);
+
   const [files, setFiles] = useState<QueueFile[]>([]);
   const [selectedFile, setSelectedFile] = useState<QueueFile | null>(null);
   const [isUploading, setIsUploading] = useState(false);
@@ -349,11 +353,27 @@ export default function LongToShortPage() {
         setApiStatus("online");
         fetchFiles();
         fetchOutputs();
+        fetchVersion();
       } else {
         setApiStatus("offline");
       }
     } catch {
       setApiStatus("offline");
+    }
+  };
+
+  const fetchVersion = async () => {
+    if (!session?.user?.email) return;
+    const adminEmails = ["attapon.tom@gmail.com", "admin@modmedia.asia"];
+    if (!adminEmails.includes(session.user.email!)) return;
+    try {
+      const res = await fetch(`${API_URL}/version`, { mode: "cors" });
+      if (res.ok) {
+        const data = await res.json();
+        setVersionInfo(data);
+      }
+    } catch (err) {
+      console.error("Failed to fetch version:", err);
     }
   };
 
@@ -363,7 +383,11 @@ export default function LongToShortPage() {
       const res = await fetch(`${API_URL}/files`, { mode: "cors" });
       if (res.ok) {
         const data = await res.json();
-        setFiles(data.files || []);
+        // Sort by createdAt descending (newest first)
+        const sortedFiles = (data.files || []).sort((a: QueueFile, b: QueueFile) => 
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        );
+        setFiles(sortedFiles);
       }
     } catch (error) {
       console.error("Error fetching files:", error);
@@ -429,15 +453,20 @@ export default function LongToShortPage() {
     if (!confirm("ต้องการลบไฟล์นี้?")) return;
 
     try {
-      const res = await fetch(`${API_URL}/files/${jobId}`, { method: "DELETE", mode: "cors" });
+      const encodedJobId = encodeURIComponent(jobId);
+      const res = await fetch(`${API_URL}/files/${encodedJobId}`, { method: "DELETE", mode: "cors" });
       if (res.ok) {
         fetchFiles();
         if (selectedFile?.id === jobId) {
           setSelectedFile(null);
         }
+        alert("ลบไฟล์สำเร็จ ✅");
+      } else {
+        alert("ลบไฟล์ไม่สำเร็จ ❌");
       }
     } catch (error) {
       console.error("Delete error:", error);
+      alert("เกิดข้อผิดพลาด ❌");
     }
   };
 
@@ -876,32 +905,91 @@ export default function LongToShortPage() {
 
                   {/* Settings based on mode */}
                   {mode === "shorts" ? (
-                    <div className="grid gap-4 sm:grid-cols-2">
-                      <div className="space-y-3">
-                        <label className="text-sm font-medium">
-                          จำนวนคลิป: {clipCount}
-                        </label>
-                        <Slider
-                          value={[clipCount]}
-                          onValueChange={(v) => setClipCount(v[0])}
-                          min={1}
-                          max={10}
-                          step={1}
-                          disabled={isProcessing}
-                        />
+                    <div className="space-y-4">
+                      <div className="grid gap-4 sm:grid-cols-2">
+                        <div className="space-y-3">
+                          <label className="text-sm font-medium">
+                            จำนวนคลิป: {clipCount}
+                          </label>
+                          <Slider
+                            value={[clipCount]}
+                            onValueChange={(v) => setClipCount(v[0])}
+                            min={1}
+                            max={10}
+                            step={1}
+                            disabled={isProcessing}
+                          />
+                        </div>
+                        <div className="space-y-3">
+                          <label className="text-sm font-medium">
+                            ความยาวสูงสุด/คลิป: {maxDuration}s
+                          </label>
+                          <Slider
+                            value={[maxDuration]}
+                            onValueChange={(v) => setMaxDuration(v[0])}
+                            min={15}
+                            max={180}
+                            step={15}
+                            disabled={isProcessing}
+                          />
+                        </div>
                       </div>
-                      <div className="space-y-3">
-                        <label className="text-sm font-medium">
-                          ความยาวสูงสุด/คลิป: {maxDuration}s
-                        </label>
-                        <Slider
-                          value={[maxDuration]}
-                          onValueChange={(v) => setMaxDuration(v[0])}
-                          min={15}
-                          max={180}
-                          step={15}
-                          disabled={isProcessing}
-                        />
+
+                      {/* Orientation */}
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">รูปแบบวิดีโอ</label>
+                        <div className="flex gap-2">
+                          <Button
+                            variant={orientation === "vertical" ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => setOrientation("vertical")}
+                            disabled={isProcessing}
+                            className="flex-1"
+                          >
+                            📱 Vertical (9:16)
+                          </Button>
+                          <Button
+                            variant={orientation === "landscape" ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => setOrientation("landscape")}
+                            disabled={isProcessing}
+                            className="flex-1"
+                          >
+                            🖥️ Landscape (16:9)
+                          </Button>
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          {orientation === "vertical" ? "สำหรับ TikTok, Reels, Shorts (ตัด+Reframe)" : "สำหรับ YouTube, Facebook (ตัดอย่างเดียว)"}
+                        </p>
+                      </div>
+
+                      {/* Resolution */}
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">ความละเอียด Export</label>
+                        <div className="flex gap-2">
+                          {(Object.keys(RESOLUTIONS) as Array<"FHD" | "2K" | "4K">).map((res) => (
+                            <Button
+                              key={res}
+                              variant={resolution === res ? "default" : "outline"}
+                              size="sm"
+                              onClick={() => setResolution(res)}
+                              disabled={isProcessing}
+                              className="flex-1"
+                            >
+                              {res}
+                            </Button>
+                          ))}
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          {RESOLUTIONS[resolution].label}
+                        </p>
+                      </div>
+
+                      <div className="p-3 rounded-lg bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800">
+                        <p className="text-sm text-blue-800 dark:text-blue-200">
+                          ✂️ <strong>Short Clips:</strong> AI จะตัดคลิปตามจุดที่ประโยค/เรื่องจบสมบูรณ์ 
+                          ไม่ตัดกลางคัน — แต่ละคลิปเล่าครบในตัวเอง
+                        </p>
                       </div>
                     </div>
                   ) : (
@@ -1167,44 +1255,53 @@ export default function LongToShortPage() {
                     </div>
                   )}
 
-                  {/* Results */}
+                  {/* Results - Horizontal YouTube-style layout */}
                   {jobStatus?.clips && jobStatus.clips.length > 0 && (
                     <div className="space-y-3">
                       <h3 className="font-medium">ผลลัพธ์ ({jobStatus.clips.length} คลิป)</h3>
-                      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                      <div className="space-y-3">
                         {jobStatus.clips.map((clip) => (
                           <Card key={clip.id} className="overflow-hidden">
-                            <div className="aspect-[9/16] bg-black relative">
-                              <video
-                                src={`${API_URL}/preview/${selectedFile.id}/${clip.filename}`}
-                                className="w-full h-full object-contain"
-                                controls
-                                playsInline
-                                preload="metadata"
-                                poster=""
-                              />
-                            </div>
-                            <CardContent className="p-3 space-y-2">
-                              <div className="flex items-center justify-between">
-                                <Badge variant="secondary">
-                                  {clip.filename === 'highlight.mp4' ? 'Highlight' : `Clip ${clip.id}`}
-                                </Badge>
-                                <span className="text-xs text-muted-foreground">
-                                  {formatTime(clip.duration)}
-                                </span>
+                            <div className="flex gap-3 p-3">
+                              {/* Video thumbnail - horizontal 16:9 style */}
+                              <div className="relative flex-shrink-0 w-40 sm:w-48 aspect-video bg-black rounded-lg overflow-hidden">
+                                <video
+                                  src={`${API_URL}/preview/${selectedFile.id}/${clip.filename}`}
+                                  className="w-full h-full object-cover"
+                                  controls
+                                  playsInline
+                                  preload="metadata"
+                                  poster=""
+                                />
                               </div>
-                              <p className="text-xs line-clamp-2">{clip.title}</p>
-                              <Button size="sm" className="w-full" asChild>
-                                <a
-                                  href={`${API_URL}/download/${selectedFile.id}/${clip.filename}`}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                >
-                                  <Download className="h-3 w-3 mr-1" />
-                                  Download
-                                </a>
-                              </Button>
-                            </CardContent>
+                              {/* Info */}
+                              <div className="flex-1 min-w-0 flex flex-col justify-between py-1">
+                                <div className="space-y-1">
+                                  <div className="flex items-center gap-2">
+                                    <Badge variant="secondary" className="text-xs">
+                                      {clip.filename === 'highlight.mp4' ? 'Highlight/Trailer' : `Clip ${clip.id}`}
+                                    </Badge>
+                                    <span className="text-xs text-muted-foreground">
+                                      {formatTime(clip.duration)}
+                                    </span>
+                                  </div>
+                                  <p className="text-sm line-clamp-2">{clip.title}</p>
+                                  {clip.reason && (
+                                    <p className="text-xs text-muted-foreground line-clamp-1">{clip.reason}</p>
+                                  )}
+                                </div>
+                                <Button size="sm" className="w-fit mt-2" asChild>
+                                  <a
+                                    href={`${API_URL}/download/${selectedFile.id}/${clip.filename}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                  >
+                                    <Download className="h-3 w-3 mr-1" />
+                                    Download
+                                  </a>
+                                </Button>
+                              </div>
+                            </div>
                           </Card>
                         ))}
                       </div>
@@ -1232,7 +1329,7 @@ export default function LongToShortPage() {
               <p className="text-xs text-muted-foreground">ยังไม่มีไฟล์</p>
             ) : (
               <div className="space-y-2 max-h-48 overflow-y-auto">
-                {outputFolders.slice(0, 5).map((folder) => (
+                {[...outputFolders].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 5).map((folder) => (
                   <div key={folder.name} className="p-2 rounded-lg bg-muted/50 border space-y-1">
                     <p className="text-xs font-medium truncate">{folder.name}</p>
                     <div className="flex flex-col gap-0.5">
@@ -1273,6 +1370,34 @@ export default function LongToShortPage() {
             <p className="truncate"><strong>Output:</strong> ~/Videos/LongToShort/output/</p>
           </CardContent>
         </Card>
+
+        {/* Version Info (Admin Only) */}
+        {(session?.user?.email === 'attapon.tom@gmail.com' || session?.user?.email === 'admin@modmedia.asia') && versionInfo && (
+          <Card className="w-full border-purple-500/20">
+            <CardHeader className="py-2">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-xs flex items-center gap-1">
+                  <Sparkles className="h-3 w-3 text-purple-500" />
+                  Version {versionInfo.version}
+                </CardTitle>
+                <Badge variant="outline" className="text-[10px]">{versionInfo.updated}</Badge>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-2 pt-0">
+              <div className="flex flex-wrap gap-1">
+                {versionInfo.features?.map((f: string) => (
+                  <Badge key={f} variant="secondary" className="text-[9px] px-1.5 py-0">
+                    {f}
+                  </Badge>
+                ))}
+              </div>
+              <details className="text-[10px] text-muted-foreground">
+                <summary className="cursor-pointer hover:text-foreground">Changelog</summary>
+                <pre className="mt-1 p-2 bg-muted/30 rounded text-[9px] max-h-32 overflow-y-auto whitespace-pre-wrap">{versionInfo.changelog}</pre>
+              </details>
+            </CardContent>
+          </Card>
+        )}
       </div>
     </div>
   );

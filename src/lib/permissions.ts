@@ -43,6 +43,7 @@ export const pageAccess: Record<string, {
   // Admin only
   "/settings": { minRole: "admin", description: "Settings" },
   "/admin/settings": { minRole: "admin", description: "Admin Settings" },
+  "/admin/monitoring": { minRole: "admin", description: "Token Monitoring" },
   "/audit": { minRole: "admin", description: "Audit Log" },
   "/youtube": { minRole: "manager", description: "YouTube Analytics" },
 };
