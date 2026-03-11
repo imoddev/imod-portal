@@ -78,7 +78,9 @@ function SearchableDropdown({
     onChange('');
   };
 
-  const displayValue = value || '';
+  // ✅ FIX: Find selected option's label (not ID)
+  const selectedOption = options.find(opt => opt.value === value);
+  const displayValue = selectedOption ? selectedOption.label : (value || '');
 
   return (
     <div className="relative" ref={dropdownRef}>
@@ -109,7 +111,7 @@ function SearchableDropdown({
           type="button"
           onClick={() => !disabled && setIsOpen(!isOpen)}
           disabled={disabled}
-          className={`w-full px-4 py-3 bg-slate-700/50 border rounded-xl text-left flex items-center justify-between transition-colors ${
+          className={`w-full px-4 py-3 bg-slate-700/50 border rounded-xl text-left flex items-center justify-between transition-colors truncate ${
             disabled
               ? 'border-slate-700 text-slate-600 cursor-not-allowed'
               : isOpen
@@ -117,15 +119,15 @@ function SearchableDropdown({
               : 'border-slate-600 text-white hover:border-slate-500'
           }`}
         >
-          <span className={displayValue ? 'text-white' : 'text-slate-500'}>
+          <span className={`truncate ${displayValue ? 'text-white' : 'text-slate-500'}`}>
             {displayValue || placeholder}
           </span>
-          <span className="text-slate-400">{isOpen ? '▲' : '▼'}</span>
+          <span className="text-slate-400 ml-2 flex-shrink-0">{isOpen ? '▲' : '▼'}</span>
         </button>
       )}
 
       {isOpen && !isCustom && (
-        <div className="absolute z-50 w-full mt-2 bg-slate-800 border border-slate-600 rounded-xl shadow-xl overflow-hidden">
+        <div className="absolute z-[100] w-full mt-2 bg-slate-800 border border-slate-600 rounded-xl shadow-2xl overflow-hidden">
           {/* Search input */}
           <div className="p-2 border-b border-slate-700">
             <input
