@@ -10,24 +10,31 @@ export async function GET() {
       prisma.nevVariant.count(),
     ]);
 
-    // Get all variants for calculations
-    const variants = await prisma.nevVariant.findMany({
+    // Get all models with powertrain info
+    const models = await prisma.nevModel.findMany({
       select: {
-        priceBaht: true,
-        rangeKm: true,
         powertrain: true,
+        variants: {
+          select: {
+            priceBaht: true,
+            rangeKm: true,
+          },
+        },
       },
     });
 
-    // Powertrain breakdown
+    // Powertrain breakdown (from models)
     const powertrainBreakdown = {
-      BEV: variants.filter(v => v.powertrain === 'BEV').length,
-      PHEV: variants.filter(v => v.powertrain === 'PHEV').length,
-      HEV: variants.filter(v => v.powertrain === 'HEV').length,
+      BEV: models.filter(m => m.powertrain === 'BEV').length,
+      PHEV: models.filter(m => m.powertrain === 'PHEV').length,
+      HEV: models.filter(m => m.powertrain === 'HEV').length,
     };
 
+    // Collect all variants from all models
+    const allVariants = models.flatMap(m => m.variants);
+
     // Price range
-    const prices = variants
+    const prices = allVariants
       .map(v => v.priceBaht)
       .filter((p): p is number => p !== null);
     
@@ -36,7 +43,7 @@ export async function GET() {
       : null;
 
     // Average range
-    const ranges = variants
+    const ranges = allVariants
       .map(v => v.rangeKm)
       .filter((r): r is number => r !== null);
     
