@@ -73,9 +73,12 @@ export default function NevAdminDashboard() {
               >
                 ดูเว็บไซต์
               </Link>
-              <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+              <Link
+                href="/nev/admin/import"
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              >
                 Import Data
-              </button>
+              </Link>
             </div>
           </div>
         </div>
