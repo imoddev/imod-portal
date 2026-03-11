@@ -176,7 +176,7 @@ export default function ImportDataPage() {
                     <input
                       type="file"
                       onChange={e => setFiles(Array.from(e.target.files || []))}
-                      accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png"
+                      accept=".doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png"
                       multiple
                       className="hidden"
                       id="file-upload"
@@ -187,7 +187,7 @@ export default function ImportDataPage() {
                         {files.length > 0 ? `เลือก ${files.length} ไฟล์` : 'คลิกเพื่อเลือกไฟล์'}
                       </p>
                       <p className="text-sm text-gray-500">
-                        รองรับ: PDF, DOC, DOCX, XLS, XLSX, JPG, PNG
+                        รองรับ: DOC, DOCX, XLS, XLSX, JPG, PNG
                       </p>
                     </label>
                   </div>
@@ -225,11 +225,14 @@ export default function ImportDataPage() {
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
               <h3 className="font-medium text-blue-900 mb-2">รูปแบบที่รองรับ</h3>
               <ul className="text-sm text-blue-800 space-y-1">
-                <li>• PDF - ใบสเปค, โบรชัวร์</li>
-                <li>• DOC/DOCX - เอกสาร Microsoft Word</li>
-                <li>• XLS/XLSX - ตาราง Excel</li>
-                <li>• JPG/PNG - รูปภาพ (จะแปลงเป็น WebP อัตโนมัติ)</li>
+                <li>✅ DOC/DOCX - เอกสาร Microsoft Word</li>
+                <li>✅ XLS/XLSX - ตาราง Excel</li>
+                <li>✅ JPG/PNG - รูปภาพ (จะแปลงเป็น WebP อัตโนมัติ)</li>
+                <li className="text-red-600">❌ PDF - ยังไม่รองรับ (ปัญหา serverless)</li>
               </ul>
+              <p className="text-xs text-blue-700 mt-2">
+                💡 แนะนำ: ใช้ DOC/DOCX แทน PDF สำหรับเอกสารข้อความ
+              </p>
             </div>
           </div>
         ) : (
@@ -237,14 +240,51 @@ export default function ImportDataPage() {
             <div className="bg-white rounded-xl shadow-sm p-6 mb-6">
               <h2 className="text-lg font-semibold mb-4">ตรวจสอบข้อมูล</h2>
               
-              {preview.data?.specs ? (
+              {preview.data?.specs || preview.mergeError ? (
                 <div className="space-y-4">
                   {preview.fileCount && (
-                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
-                      <p className="text-sm font-medium text-blue-900">
-                        ประมวลผลจาก {preview.fileCount} ไฟล์สำเร็จ
+                    <div className={`rounded-lg p-4 mb-4 ${
+                      preview.mergeError 
+                        ? 'bg-yellow-50 border border-yellow-200' 
+                        : 'bg-blue-50 border border-blue-200'
+                    }`}>
+                      <p className={`text-sm font-medium ${
+                        preview.mergeError ? 'text-yellow-900' : 'text-blue-900'
+                      }`}>
+                        {preview.successCount > 0 
+                          ? `ประมวลผลสำเร็จ ${preview.successCount}/${preview.fileCount} ไฟล์`
+                          : `ประมวลผลไม่สำเร็จ (${preview.failCount}/${preview.fileCount} ไฟล์)`
+                        }
                       </p>
-                      <p className="text-xs text-blue-700 mt-1">Batch ID: {preview.batchId}</p>
+                      <p className={`text-xs mt-1 ${
+                        preview.mergeError ? 'text-yellow-700' : 'text-blue-700'
+                      }`}>
+                        Batch ID: {preview.batchId}
+                      </p>
+                      {preview.mergeError && (
+                        <p className="text-sm text-red-600 mt-2 font-medium">
+                          ⚠️ {preview.mergeError}
+                        </p>
+                      )}
+                    </div>
+                  )}
+                  
+                  {preview.parsedData && preview.parsedData.length > 0 && (
+                    <div className="bg-gray-50 border rounded-lg p-4 mb-4">
+                      <p className="text-sm font-medium text-gray-900 mb-2">รายละเอียดไฟล์:</p>
+                      <div className="space-y-2">
+                        {preview.parsedData.map((file: any, i: number) => (
+                          <div key={i} className={`text-sm p-2 rounded ${
+                            file.success ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'
+                          }`}>
+                            <div className="font-medium">{file.filename}</div>
+                            {file.error && <div className="text-xs mt-1">❌ {file.error}</div>}
+                            {file.success && file.specs && (
+                              <div className="text-xs mt-1">✅ Extract specs สำเร็จ</div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   )}
                   
@@ -285,7 +325,7 @@ export default function ImportDataPage() {
                   
                   <details className="mt-4">
                     <summary className="cursor-pointer text-sm text-gray-600">ดูข้อมูลทั้งหมด (JSON)</summary>
-                    <pre className="mt-2 bg-gray-50 p-4 rounded-lg overflow-auto text-xs">
+                    <pre className="mt-2 bg-gray-800 text-gray-100 p-4 rounded-lg overflow-auto text-xs">
                       {JSON.stringify(preview, null, 2)}
                     </pre>
                   </details>

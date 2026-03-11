@@ -76,9 +76,12 @@ export async function POST(request: NextRequest) {
 
       try {
         if (file.type.includes('pdf')) {
-          const pdfData = await parsePDF(file.path);
-          extractedText = pdfData.text;
-          fileData = { type: 'pdf', numPages: pdfData.numPages, success: true };
+          // PDF parsing disabled (not supported on Vercel serverless)
+          fileData = { 
+            type: 'pdf', 
+            error: 'PDF parsing not supported on serverless. Please use DOC/DOCX/XLS/Images instead.',
+            success: false 
+          };
         } else if (file.type.includes('word') || file.type.includes('document')) {
           const docData = await parseDOCX(file.path);
           extractedText = docData.text;
