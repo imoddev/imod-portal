@@ -209,6 +209,29 @@ export default function ImportDataPage() {
   
   // Re-upload option
   const [existingBatchId, setExistingBatchId] = useState('');
+  
+  // Existing folders from Mac Studio
+  const [existingFolders, setExistingFolders] = useState<{ name: string; date: string }[]>([]);
+  const [loadingFolders, setLoadingFolders] = useState(false);
+
+  // Fetch existing folders when checkbox is checked
+  useEffect(() => {
+    if (!existingBatchId) return;
+    
+    const fetchFolders = async () => {
+      setLoadingFolders(true);
+      try {
+        const res = await fetch('/api/nev/admin/folders?limit=30');
+        const data = await res.json();
+        setExistingFolders(Array.isArray(data) ? data : []);
+      } catch (err) {
+        console.error('Failed to fetch folders:', err);
+      } finally {
+        setLoadingFolders(false);
+      }
+    };
+    fetchFolders();
+  }, [existingBatchId]);
 
   // Fetch brands on mount
   useEffect(() => {
@@ -658,18 +681,13 @@ export default function ImportDataPage() {
                     <SearchableDropdown
                       label="เลือกรุ่นที่ต้องการเพิ่มไฟล์"
                       placeholder="ค้นหารุ่น หรือโฟลเดอร์เก่า..."
-                      options={[
-                        // Recent folders (from models with variants)
-                        ...models.flatMap(m => 
-                          (m.variants || []).map(v => ({
-                            value: `${m.name}-${v.name}`,
-                            label: `${brands.find(b => b.id === m.brandId)?.name || ''} ${m.name} - ${v.name}`,
-                          }))
-                        ),
-                        // Add option to type custom batch ID
-                      ]}
+                      options={existingFolders.map(f => ({
+                        value: f.name,
+                        label: f.name,
+                      }))}
                       value={existingBatchId === 'placeholder' ? '' : existingBatchId}
                       onChange={(value) => setExistingBatchId(value || 'placeholder')}
+                      loading={loadingFolders}
                     />
                     <p className="text-xs text-slate-500 mt-2">
                       💡 เลือกจากรายการ หรือกด "➕ เพิ่มใหม่" แล้วพิมพ์ชื่อโฟลเดอร์
