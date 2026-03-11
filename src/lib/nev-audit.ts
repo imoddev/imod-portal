@@ -26,13 +26,15 @@ export async function createAuditLog(data: AuditLogData) {
   });
 }
 
-export async function getAuditLogs(options?: {
+export interface AuditLogOptions {
   entityType?: string;
   entityId?: string;
   action?: string;
   limit?: number;
   offset?: number;
-}) {
+}
+
+export async function getAuditLogs(options: AuditLogOptions = {}) {
   const where: any = {};
   
   if (options?.entityType) where.entityType = options.entityType;
