@@ -6,8 +6,9 @@ import Link from 'next/link';
 export default function ImportDataPage() {
   const [mode, setMode] = useState<'url' | 'file'>('url');
   const [url, setUrl] = useState('');
-  const [file, setFile] = useState<File | null>(null);
+  const [files, setFiles] = useState<File[]>([]);
   const [loading, setLoading] = useState(false);
+  const [progress, setProgress] = useState('');
   const [preview, setPreview] = useState<any>(null);
 
   const handleUrlSubmit = async () => {
@@ -31,22 +32,39 @@ export default function ImportDataPage() {
   };
 
   const handleFileSubmit = async () => {
-    if (!file) return;
+    if (files.length === 0) return;
+    if (files.length > 10) {
+      alert('อัปโหลดได้สูงสุด 10 ไฟล์ต่อครั้ง');
+      return;
+    }
     
     setLoading(true);
+    setProgress('กำลังอัปโหลดไฟล์...');
+    
     const formData = new FormData();
-    formData.append('file', file);
+    files.forEach(file => formData.append('files', file));
     
     try {
-      const res = await fetch('/api/nev/admin/import/file', {
+      const res = await fetch('/api/nev/admin/import/batch', {
         method: 'POST',
         body: formData,
       });
       
       const data = await res.json();
+      
+      if (!res.ok) {
+        alert(data.error || 'เกิดข้อผิดพลาด');
+        setLoading(false);
+        setProgress('');
+        return;
+      }
+      
       setPreview(data);
+      setProgress('');
     } catch (err) {
+      console.error(err);
       alert('เกิดข้อผิดพลาด');
+      setProgress('');
     } finally {
       setLoading(false);
     }
@@ -67,7 +85,7 @@ export default function ImportDataPage() {
         alert('บันทึกสำเร็จ!');
         setPreview(null);
         setUrl('');
-        setFile(null);
+        setFiles([]);
       }
     } catch (err) {
       alert('เกิดข้อผิดพลาด');
@@ -135,34 +153,52 @@ export default function ImportDataPage() {
               ) : (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    เลือกไฟล์
+                    เลือกไฟล์ (สูงสุด 10 ไฟล์)
                   </label>
                   <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
                     <input
                       type="file"
-                      onChange={e => setFile(e.target.files?.[0] || null)}
+                      onChange={e => setFiles(Array.from(e.target.files || []))}
                       accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png"
+                      multiple
                       className="hidden"
                       id="file-upload"
                     />
                     <label htmlFor="file-upload" className="cursor-pointer">
                       <div className="text-4xl mb-2">📁</div>
                       <p className="text-gray-600 mb-1">
-                        {file ? file.name : 'คลิกเพื่อเลือกไฟล์'}
+                        {files.length > 0 ? `เลือก ${files.length} ไฟล์` : 'คลิกเพื่อเลือกไฟล์'}
                       </p>
                       <p className="text-sm text-gray-500">
                         รองรับ: PDF, DOC, DOCX, XLS, XLSX, JPG, PNG
                       </p>
                     </label>
                   </div>
-                  {file && (
-                    <button
-                      onClick={handleFileSubmit}
-                      disabled={loading}
-                      className="w-full mt-4 px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
-                    >
-                      {loading ? 'กำลังประมวลผล...' : 'อัปโหลด'}
-                    </button>
+                  
+                  {files.length > 0 && (
+                    <div className="mt-4 space-y-2">
+                      <p className="text-sm font-medium text-gray-700">ไฟล์ที่เลือก:</p>
+                      <div className="max-h-40 overflow-y-auto space-y-1">
+                        {files.map((f, i) => (
+                          <div key={i} className="flex items-center justify-between bg-gray-50 px-3 py-2 rounded text-sm">
+                            <span className="truncate">{f.name}</span>
+                            <span className="text-gray-500 ml-2">{(f.size / 1024).toFixed(1)} KB</span>
+                          </div>
+                        ))}
+                      </div>
+                      {progress && (
+                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-800">
+                          {progress}
+                        </div>
+                      )}
+                      <button
+                        onClick={handleFileSubmit}
+                        disabled={loading}
+                        className="w-full px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                      >
+                        {loading ? 'กำลังประมวลผล...' : 'อัปโหลด'}
+                      </button>
+                    </div>
                   )}
                 </div>
               )}
@@ -186,6 +222,15 @@ export default function ImportDataPage() {
               
               {preview.data?.specs ? (
                 <div className="space-y-4">
+                  {preview.fileCount && (
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                      <p className="text-sm font-medium text-blue-900">
+                        ประมวลผลจาก {preview.fileCount} ไฟล์สำเร็จ
+                      </p>
+                      <p className="text-xs text-blue-700 mt-1">Batch ID: {preview.batchId}</p>
+                    </div>
+                  )}
+                  
                   <div className="grid md:grid-cols-2 gap-4">
                     <div>
                       <p className="text-sm text-gray-600">แบรนด์</p>
