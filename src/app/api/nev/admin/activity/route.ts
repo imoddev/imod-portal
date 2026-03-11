@@ -1,36 +1,38 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-// ✅ Use environment variable for flexibility (Vercel vs Local)
-const ACTIVITY_API_URL = process.env.MAC_STUDIO_IMPORT_URL 
-  ? `${process.env.MAC_STUDIO_IMPORT_URL}/nev/activity`
-  : null;
+const MAC_STUDIO_URL = process.env.MAC_STUDIO_IMPORT_URL || 'http://localhost:3200';
 
 export async function GET(request: NextRequest) {
   try {
+    // Forward to Mac Studio
     const searchParams = request.nextUrl.searchParams;
-    const limit = parseInt(searchParams.get('limit') || '20');
+    const type = searchParams.get('type');
+    const limit = searchParams.get('limit') || '20';
     
-    // If running on Vercel (no local file access), try to fetch from Mac Studio
-    if (ACTIVITY_API_URL) {
-      try {
-        const res = await fetch(`${ACTIVITY_API_URL}?limit=${limit}`, {
-          next: { revalidate: 30 }, // Cache for 30 seconds
-        });
-        if (res.ok) {
-          const data = await res.json();
-          // Return array for frontend compatibility
-          return NextResponse.json(data.activities || []);
-        }
-      } catch {
-        // Mac Studio not reachable, return empty
-      }
+    let url = `${MAC_STUDIO_URL}/nev/activity?limit=${limit}`;
+    if (type) url += `&type=${type}`;
+    
+    console.log('[Activity API] Forwarding to Mac Studio:', url);
+    
+    const response = await fetch(url);
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('[Activity API] Mac Studio error:', response.status, errorText);
+      return NextResponse.json({
+        error: 'Failed to fetch from Mac Studio',
+        details: errorText,
+      }, { status: 500 });
     }
     
-    // Fallback: return empty array (Vercel can't read local files)
-    return NextResponse.json([]);
+    const data = await response.json();
+    
+    return NextResponse.json(data);
   } catch (error: any) {
     console.error('[Activity API] Error:', error);
-    // Return empty array instead of error object
-    return NextResponse.json([]);
+    return NextResponse.json(
+      { error: 'Failed to fetch activity log', details: error.message },
+      { status: 500 }
+    );
   }
 }

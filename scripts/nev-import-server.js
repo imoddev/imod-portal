@@ -73,6 +73,41 @@ app.get('/health', (req, res) => {
   });
 });
 
+// Activity log endpoint
+app.get('/nev/activity', (req, res) => {
+  try {
+    const activityFile = path.join(UPLOAD_DIR, 'activity.json');
+    
+    if (!fs.existsSync(activityFile)) {
+      return res.json({ success: true, activities: [] });
+    }
+    
+    const data = fs.readFileSync(activityFile, 'utf8');
+    const activities = JSON.parse(data);
+    
+    // Filter by type if provided
+    const type = req.query.type;
+    let filtered = activities;
+    
+    if (type) {
+      filtered = activities.filter(a => a.type === type);
+    }
+    
+    // Limit
+    const limit = parseInt(req.query.limit || '20');
+    filtered = filtered.slice(0, limit);
+    
+    res.json({
+      success: true,
+      activities: filtered,
+      total: activities.length
+    });
+  } catch (err) {
+    console.error('[Activity API] Error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Import endpoint (receives files from Vercel)
 app.post('/nev/import', upload.array('files', 10), async (req, res) => {
   try {
