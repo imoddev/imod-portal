@@ -11,7 +11,8 @@ const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
 const UPLOAD_DIR = '/tmp/nev-import';
-const DISCORD_CHANNEL_ID = '1478707742603612241';
+const DISCORD_CHANNEL_ID = '1467136835208609827'; // #imoddrive
+const MARCUS_EV_SESSION = 'workspace-marcus-ev'; // Marcus-EV workspace
 
 // Get batchId from command line
 const batchId = process.argv[2];
@@ -23,6 +24,7 @@ async function createDiscordThread(metadata) {
   const GATEWAY_TOKEN = process.env.OPENCLAW_GATEWAY_TOKEN;
   
   try {
+    // Use message tool to create thread in #imoddrive
     const response = await axios.post(`${GATEWAY_URL}/api/v1/message/send`, {
       channel: 'discord',
       action: 'thread-create',
@@ -37,7 +39,7 @@ async function createDiscordThread(metadata) {
     });
     
     const threadId = response.data?.result?.threadId;
-    console.log(`[Worker] Discord thread created: ${threadId}`);
+    console.log(`[Worker] Discord thread created in #imoddrive: ${threadId}`);
     return threadId;
   } catch (err) {
     console.error('[Worker] Failed to create thread:', err.message);

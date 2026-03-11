@@ -82,7 +82,7 @@ app.post('/nev/import', upload.array('files', 10), async (req, res) => {
       })),
       status: 'pending',
       uploadedBy: req.body.userId || 'unknown',
-      discordChannelId: '1478707742603612241',
+      discordChannelId: '1467136835208609827', // #imoddrive
       discordThreadId: null
     };
     
