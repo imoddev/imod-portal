@@ -817,6 +817,9 @@ model NevVariant {
   wheels       NevWheelsTires?
   powertrain   NevPowertrain?
   dimensions   NevDimensions?
+  
+  // Feature Checkbox System (V3.0)
+  variantFeatures NevVariantFeature[]
 
   @@index([modelId])
   @@index([priceBaht])
@@ -928,6 +931,9 @@ model NevSafety {
   id                  String  @id @default(cuid())
   variantId           String  @unique
   variant             NevVariant @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  
+  // Feature List (New Checkbox System)
+  features            String[]  @default([])  // ['abs', 'esc', 'acc', 'ldw', 'bsm', ...]
   
   // Airbags
   airbagsFront        Int?
@@ -1238,5 +1244,62 @@ model NevDimensions {
   
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
+}
+
+// ============================================
+// NEV Feature Checkbox System
+// ============================================
+
+// หมวดหมู่ฟีเจอร์ (Safety, Multimedia, Comfort, etc.)
+model NevFeatureCategory {
+  id          String   @id @default(cuid())
+  name        String   @unique  // "safety", "multimedia", "comfort", etc.
+  nameTh      String             // "ระบบความปลอดภัย", "ระบบมัลติมีเดีย"
+  icon        String?            // Lucide icon name
+  sortOrder   Int      @default(0)
+  
+  features    NevFeature[]
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// รายการฟีเจอร์มาตรฐาน (Master List)
+model NevFeature {
+  id          String   @id @default(cuid())
+  categoryId  String
+  category    NevFeatureCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  
+  name        String             // "ABS", "Apple CarPlay", "Heated Seats"
+  nameTh      String             // "ระบบเบรก ABS", "Apple CarPlay"
+  description String?            // คำอธิบายเพิ่มเติม
+  
+  isStandard  Boolean  @default(true)  // ฟีเจอร์มาตรฐาน (ไม่ใช่ custom)
+  sortOrder   Int      @default(0)
+  
+  variants    NevVariantFeature[]
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@unique([categoryId, name])
+}
+
+// เชื่อม Variant กับ Features ที่มี (Many-to-Many)
+model NevVariantFeature {
+  id          String   @id @default(cuid())
+  variantId   String
+  variant     NevVariant @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  
+  featureId   String
+  feature     NevFeature @relation(fields: [featureId], references: [id], onDelete: Cascade)
+  
+  // ข้อมูลเพิ่มเติม (optional)
+  value       String?            // "6 ใบ" (สำหรับ Airbags), "12.3 นิ้ว" (สำหรับ Display)
+  note        String?            // หมายเหตุ
+  
+  createdAt   DateTime @default(now())
+  
+  @@unique([variantId, featureId])
 }
 
