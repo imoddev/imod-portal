@@ -41,9 +41,10 @@ const iconMap: Record<string, any> = {
 interface Props {
   variantId: string;
   onSave?: () => void;
+  pilotMode?: boolean; // แสดงเฉพาะ Safety สำหรับ Pilot
 }
 
-export function FeatureCheckboxList({ variantId, onSave }: Props) {
+export function FeatureCheckboxList({ variantId, onSave, pilotMode = true }: Props) {
   const [categories, setCategories] = useState<Category[]>([]);
   const [features, setFeatures] = useState<Record<string, FeatureState>>({});
   const [loading, setLoading] = useState(true);
@@ -58,7 +59,13 @@ export function FeatureCheckboxList({ variantId, onSave }: Props) {
         // Load all categories with features
         const catRes = await fetch('/api/nev/features');
         const catData = await catRes.json();
-        setCategories(catData.categories || []);
+        
+        // Pilot mode: แสดงเฉพาะ Safety
+        let cats = catData.categories || [];
+        if (pilotMode) {
+          cats = cats.filter((c: Category) => c.name === 'safety');
+        }
+        setCategories(cats);
         
         // Open all categories by default
         setOpenCategories(new Set(catData.categories?.map((c: Category) => c.id) || []));
@@ -85,7 +92,7 @@ export function FeatureCheckboxList({ variantId, onSave }: Props) {
       }
     }
     loadData();
-  }, [variantId]);
+  }, [variantId, pilotMode]);
 
   const toggleFeature = (featureId: string) => {
     setFeatures(prev => ({
