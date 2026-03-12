@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
-// GET - Get single model (supports both id and slug)
+// GET - Get single model (supports both id and slug) with variants and full specs
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -16,6 +16,24 @@ export async function GET(
         brand: {
           select: { id: true, name: true, slug: true },
         },
+        variants: {
+          include: {
+            multimedia: true,
+            safety: true,
+            interior: true,
+            exterior: true,
+            powertrain: true,
+            battery: true,
+            evFeatures: true,
+            suspension: true,
+            brakes: true,
+            wheels: true,
+            dimensions: true,
+          },
+          orderBy: {
+            priceBaht: 'asc',
+          },
+        },
       },
     });
     
@@ -26,6 +44,24 @@ export async function GET(
         include: {
           brand: {
             select: { id: true, name: true, slug: true },
+          },
+          variants: {
+            include: {
+              multimedia: true,
+              safety: true,
+              interior: true,
+              exterior: true,
+              powertrain: true,
+              battery: true,
+              evFeatures: true,
+              suspension: true,
+              brakes: true,
+              wheels: true,
+              dimensions: true,
+            },
+            orderBy: {
+              priceBaht: 'asc',
+            },
           },
         },
       });
