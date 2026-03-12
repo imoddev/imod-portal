@@ -2,17 +2,17 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
 /**
- * GET /api/nev/variants/[id]
+ * GET /api/nev/variants/[slug]
  * ดึงข้อมูลรุ่นย่อย + สเปคเต็ม
  */
 export async function GET(
   request: Request,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ slug: string }> }
 ) {
   try {
-    const { id } = await params;
+    const { slug } = await params;
     const variant = await prisma.nevVariant.findUnique({
-      where: { id },
+      where: { slug },
       include: {
         model: {
           include: {
