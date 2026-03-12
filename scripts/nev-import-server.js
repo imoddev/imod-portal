@@ -258,6 +258,142 @@ function triggerAIWorker(batchId) {
   });
 }
 
+// Import from URL endpoint
+app.post('/nev/import-url', async (req, res) => {
+  try {
+    const { url } = req.body;
+    
+    if (!url) {
+      return res.status(400).json({ error: 'URL is required' });
+    }
+    
+    console.log(`[NEV URL Import] Processing URL: ${url}`);
+    
+    // Validate URL
+    let parsedUrl;
+    try {
+      parsedUrl = new URL(url);
+    } catch {
+      return res.status(400).json({ error: 'Invalid URL format' });
+    }
+    
+    // Generate batch ID
+    const date = new Date().toISOString().split('T')[0];
+    const domain = parsedUrl.hostname.replace('www.', '').split('.')[0];
+    const batchId = `${date}-url-${domain}-${Date.now()}`;
+    const batchDir = path.join(UPLOAD_DIR, batchId);
+    
+    // Create folder
+    fs.mkdirSync(batchDir, { recursive: true });
+    console.log(`[NEV URL Import] Created folder: ${batchDir}`);
+    
+    // Fetch URL content
+    console.log(`[NEV URL Import] Fetching content...`);
+    const response = await fetch(url);
+    
+    if (!response.ok) {
+      fs.rmdirSync(batchDir, { recursive: true });
+      return res.status(response.status).json({ 
+        error: `Failed to fetch URL: ${response.statusText}` 
+      });
+    }
+    
+    // Determine content type
+    const contentType = response.headers.get('content-type') || '';
+    let filename;
+    let content;
+    
+    if (contentType.includes('application/pdf')) {
+      // PDF
+      filename = 'document.pdf';
+      content = Buffer.from(await response.arrayBuffer());
+      fs.writeFileSync(path.join(batchDir, filename), content);
+    } else if (contentType.includes('text/html') || contentType.includes('text/plain')) {
+      // HTML/Text
+      filename = 'content.html';
+      content = await response.text();
+      fs.writeFileSync(path.join(batchDir, filename), content, 'utf8');
+    } else {
+      // Unknown - save as file
+      filename = 'content.bin';
+      content = Buffer.from(await response.arrayBuffer());
+      fs.writeFileSync(path.join(batchDir, filename), content);
+    }
+    
+    console.log(`[NEV URL Import] Content saved: ${filename} (${contentType})`);
+    
+    // Create metadata
+    const metadata = {
+      batchId,
+      timestamp: new Date().toISOString(),
+      source: 'url',
+      url,
+      contentType,
+      filename,
+      fileSize: Buffer.byteLength(content),
+      status: 'pending',
+      uploadedBy: 'url-import',
+      discordChannelId: '1467136835208609827',
+      discordThreadId: null
+    };
+    
+    fs.writeFileSync(
+      path.join(batchDir, 'metadata.json'),
+      JSON.stringify(metadata, null, 2)
+    );
+    
+    console.log(`[NEV URL Import] Metadata saved`);
+    
+    // Save activity log
+    const activityFile = path.join(UPLOAD_DIR, 'activity.json');
+    let activities = [];
+    if (fs.existsSync(activityFile)) {
+      try {
+        activities = JSON.parse(fs.readFileSync(activityFile, 'utf8'));
+      } catch (err) {
+        activities = [];
+      }
+    }
+    
+    activities.unshift({
+      type: 'URL_IMPORT',
+      folder: batchId,
+      timestamp: new Date().toISOString(),
+      url,
+      contentType,
+      status: 'pending_parse'
+    });
+    
+    if (activities.length > 100) {
+      activities = activities.slice(0, 100);
+    }
+    
+    fs.writeFileSync(activityFile, JSON.stringify(activities, null, 2));
+    console.log(`[Activity Log] Saved: [URL] ${batchId}`);
+    
+    // Trigger AI worker (async)
+    triggerAIWorker(batchId).catch(err => {
+      console.error(`[NEV URL Import] Worker error:`, err);
+    });
+    
+    res.json({
+      success: true,
+      batchId,
+      message: 'URL นำเข้าสำเร็จ! AI Agent กำลังประมวลผล...',
+      contentType,
+      filename,
+      batchDir
+    });
+    
+  } catch (err) {
+    console.error('[NEV URL Import] Error:', err);
+    res.status(500).json({ 
+      error: 'เกิดข้อผิดพลาด',
+      details: err.message 
+    });
+  }
+});
+
 // Start server
 app.listen(PORT, () => {
   console.log(`🚀 NEV Import Server running on http://localhost:${PORT}`);
