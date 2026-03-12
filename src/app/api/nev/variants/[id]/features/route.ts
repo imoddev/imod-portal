@@ -1,0 +1,91 @@
+import { NextResponse } from 'next/server';
+import { prisma } from '@/lib/prisma';
+
+// GET /api/nev/variants/[id]/features - รายการ Features ของ Variant นี้
+export async function GET(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { id: variantId } = await params;
+
+  try {
+    // ดึง features ที่ variant นี้มี
+    const variantFeatures = await prisma.$queryRaw`
+      SELECT 
+        vf."featureId",
+        vf.value,
+        vf.note
+      FROM "NevVariantFeature" vf
+      WHERE vf."variantId" = ${variantId}
+    ` as any[];
+
+    // สร้าง map ของ feature IDs ที่มี
+    const featureMap = new Map(
+      variantFeatures.map((vf: any) => [vf.featureId, { value: vf.value, note: vf.note }])
+    );
+
+    return NextResponse.json({
+      variantId,
+      features: Object.fromEntries(featureMap),
+      featureIds: Array.from(featureMap.keys()),
+    });
+  } catch (error) {
+    console.error('Error fetching variant features:', error);
+    return NextResponse.json(
+      { error: 'Failed to fetch variant features' },
+      { status: 500 }
+    );
+  }
+}
+
+// PUT /api/nev/variants/[id]/features - อัปเดต Features ของ Variant
+export async function PUT(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { id: variantId } = await params;
+
+  try {
+    const body = await request.json();
+    const { features } = body; // { featureId: { checked: boolean, value?: string, note?: string } }
+
+    if (!features || typeof features !== 'object') {
+      return NextResponse.json(
+        { error: 'features object is required' },
+        { status: 400 }
+      );
+    }
+
+    // ลบ features เดิมทั้งหมด
+    await prisma.$executeRaw`
+      DELETE FROM "NevVariantFeature" WHERE "variantId" = ${variantId}
+    `;
+
+    // เพิ่ม features ที่เลือก
+    let addedCount = 0;
+    for (const [featureId, data] of Object.entries(features)) {
+      const featureData = data as { checked?: boolean; value?: string; note?: string };
+      
+      if (featureData.checked) {
+        const id = 'c' + Math.random().toString(36).substring(2, 15);
+        await prisma.$executeRaw`
+          INSERT INTO "NevVariantFeature" ("id", "variantId", "featureId", "value", "note")
+          VALUES (${id}, ${variantId}, ${featureId}, ${featureData.value || null}, ${featureData.note || null})
+        `;
+        addedCount++;
+      }
+    }
+
+    return NextResponse.json({
+      success: true,
+      variantId,
+      featuresAdded: addedCount,
+    });
+  } catch (error: any) {
+    console.error('Error updating variant features:', error);
+    return NextResponse.json(
+      { error: error.message || 'Failed to update variant features' },
+      { status: 500 }
+    );
+  }
+}
