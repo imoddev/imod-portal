@@ -62,7 +62,7 @@ interface Variant {
   dimensions?: any;
 }
 
-export default function EditVariantPage({ params }: { params: Promise<{ id: string }> }) {
+export default function EditVariantPage({ params }: { params: Promise<{ slug: string }> }) {
   const router = useRouter();
   const [variant, setVariant] = useState<Variant | null>(null);
   const [loading, setLoading] = useState(true);
@@ -71,7 +71,7 @@ export default function EditVariantPage({ params }: { params: Promise<{ id: stri
 
   useEffect(() => {
     params.then(p => {
-      fetch(`/api/nev/admin/variants/${p.id}`)
+      fetch(`/api/nev/admin/variants/${p.slug}`)
         .then(r => r.json())
         .then(data => {
           if (data.error) {
@@ -269,7 +269,7 @@ export default function EditVariantPage({ params }: { params: Promise<{ id: stri
           {activeTab === 'features' && (
             <div className="bg-slate-800/50 backdrop-blur-sm rounded-2xl p-6 border border-slate-700">
               <FeatureCheckboxList 
-                variantId={variant.id}
+                variantSlug={variant.slug}
                 onSave={() => alert('✅ บันทึกฟีเจอร์สำเร็จ!')}
               />
             </div>

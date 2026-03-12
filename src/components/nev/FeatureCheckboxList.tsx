@@ -39,12 +39,12 @@ const iconMap: Record<string, any> = {
 };
 
 interface Props {
-  variantId: string;
+  variantSlug: string;
   onSave?: () => void;
   pilotMode?: boolean; // แสดงเฉพาะ Safety สำหรับ Pilot
 }
 
-export function FeatureCheckboxList({ variantId, onSave, pilotMode = true }: Props) {
+export function FeatureCheckboxList({ variantSlug, onSave, pilotMode = true }: Props) {
   const [categories, setCategories] = useState<Category[]>([]);
   const [features, setFeatures] = useState<Record<string, FeatureState>>({});
   const [loading, setLoading] = useState(true);
@@ -71,7 +71,7 @@ export function FeatureCheckboxList({ variantId, onSave, pilotMode = true }: Pro
         setOpenCategories(new Set(catData.categories?.map((c: Category) => c.id) || []));
 
         // Load variant's existing features
-        const varRes = await fetch(`/api/nev/variants/${variantId}/features`);
+        const varRes = await fetch(`/api/nev/variants/${variantSlug}/features`);
         const varData = await varRes.json();
         
         // Initialize feature states
@@ -92,7 +92,7 @@ export function FeatureCheckboxList({ variantId, onSave, pilotMode = true }: Pro
       }
     }
     loadData();
-  }, [variantId, pilotMode]);
+  }, [variantSlug, pilotMode]);
 
   const toggleFeature = (featureId: string) => {
     setFeatures(prev => ({
@@ -129,7 +129,7 @@ export function FeatureCheckboxList({ variantId, onSave, pilotMode = true }: Pro
   const handleSave = async () => {
     setSaving(true);
     try {
-      const res = await fetch(`/api/nev/variants/${variantId}/features`, {
+      const res = await fetch(`/api/nev/variants/${variantSlug}/features`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ features }),

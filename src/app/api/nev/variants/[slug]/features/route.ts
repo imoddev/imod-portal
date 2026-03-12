@@ -1,14 +1,27 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
-// GET /api/nev/variants/[id]/features - รายการ Features ของ Variant นี้
+// Helper: Get variant ID from slug
+async function getVariantId(slug: string): Promise<string | null> {
+  const result = await prisma.$queryRaw`
+    SELECT id FROM "NevVariant" WHERE slug = ${slug} LIMIT 1
+  ` as any[];
+  return result[0]?.id || null;
+}
+
+// GET /api/nev/variants/[slug]/features - รายการ Features ของ Variant นี้
 export async function GET(
   request: Request,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ slug: string }> }
 ) {
-  const { id: variantId } = await params;
+  const { slug } = await params;
 
   try {
+    const variantId = await getVariantId(slug);
+    if (!variantId) {
+      return NextResponse.json({ error: 'Variant not found' }, { status: 404 });
+    }
+
     // ดึง features ที่ variant นี้มี
     const variantFeatures = await prisma.$queryRaw`
       SELECT 
@@ -26,6 +39,7 @@ export async function GET(
 
     return NextResponse.json({
       variantId,
+      slug,
       features: Object.fromEntries(featureMap),
       featureIds: Array.from(featureMap.keys()),
     });
@@ -38,14 +52,19 @@ export async function GET(
   }
 }
 
-// PUT /api/nev/variants/[id]/features - อัปเดต Features ของ Variant
+// PUT /api/nev/variants/[slug]/features - อัปเดต Features ของ Variant
 export async function PUT(
   request: Request,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ slug: string }> }
 ) {
-  const { id: variantId } = await params;
+  const { slug } = await params;
 
   try {
+    const variantId = await getVariantId(slug);
+    if (!variantId) {
+      return NextResponse.json({ error: 'Variant not found' }, { status: 404 });
+    }
+
     const body = await request.json();
     const { features } = body; // { featureId: { checked: boolean, value?: string, note?: string } }
 
@@ -79,6 +98,7 @@ export async function PUT(
     return NextResponse.json({
       success: true,
       variantId,
+      slug,
       featuresAdded: addedCount,
     });
   } catch (error: any) {
