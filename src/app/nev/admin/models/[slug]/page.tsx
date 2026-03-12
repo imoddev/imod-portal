@@ -348,7 +348,7 @@ export default function AdminModelDetailPage({ params }: { params: Promise<{ slu
                     </div>
                     <div className="flex gap-2 ml-4">
                       <Link
-                        href={`/nev/admin/variants/${variant.id}/edit`}
+                        href={`/nev/admin/variants/${variant.slug}/edit`}
                         className="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg transition-colors flex items-center gap-2"
                       >
                         <span>✏️</span>

@@ -128,7 +128,6 @@ export default function EditVariantPage({ params }: { params: Promise<{ slug: st
 
       if (res.ok) {
         alert('✅ บันทึกสำเร็จ!');
-        router.push(`/nev/admin/models/${variant.model.slug}`);
       } else {
         const data = await res.json();
         alert(`❌ เกิดข้อผิดพลาด: ${data.error || 'Unknown error'}`);
@@ -307,14 +306,25 @@ export default function EditVariantPage({ params }: { params: Promise<{ slug: st
                   value={variant.rangeKm}
                   onChange={(v) => updateBasic('rangeKm', v ? parseInt(v) : null)}
                 />
-                <InputField
+                <SelectField
                   label="มาตรฐานระยะทาง"
                   value={variant.rangeStandard}
                   onChange={(v) => updateBasic('rangeStandard', v)}
-                  placeholder="NEDC, WLTP, EPA"
+                  options={[
+                    { value: 'WLTP', label: 'WLTP' },
+                    { value: 'NEDC', label: 'NEDC' },
+                    { value: 'CLTC', label: 'CLTC' },
+                    { value: 'EPA', label: 'EPA' },
+                  ]}
                 />
                 <InputField
-                  label="กำลังไฟ (HP)"
+                  label="กำลังมอเตอร์ (kW)"
+                  type="number"
+                  value={variant.motorKw}
+                  onChange={(v) => updateBasic('motorKw', v ? parseFloat(v) : null)}
+                />
+                <InputField
+                  label="แรงม้า (PS)"
                   type="number"
                   value={variant.motorHp}
                   onChange={(v) => updateBasic('motorHp', v ? parseInt(v) : null)}
@@ -338,11 +348,21 @@ export default function EditVariantPage({ params }: { params: Promise<{ slug: st
                   value={variant.topSpeedKmh}
                   onChange={(v) => updateBasic('topSpeedKmh', v ? parseInt(v) : null)}
                 />
-                <InputField
+                <SelectField
                   label="Drivetrain"
                   value={variant.drivetrain}
                   onChange={(v) => updateBasic('drivetrain', v)}
-                  placeholder="FWD, RWD, AWD"
+                  options={[
+                    { value: 'FWD', label: 'FWD (ขับหน้า)' },
+                    { value: 'RWD', label: 'RWD (ขับหลัง)' },
+                    { value: 'AWD', label: 'AWD (ขับ 4 ล้อ)' },
+                  ]}
+                />
+                <InputField
+                  label="จำนวนมอเตอร์"
+                  type="number"
+                  value={variant.motorCount}
+                  onChange={(v) => updateBasic('motorCount', v ? parseInt(v) : null)}
                 />
                 <InputField
                   label="DC Charging (kW)"
@@ -369,10 +389,15 @@ export default function EditVariantPage({ params }: { params: Promise<{ slug: st
           {/* Powertrain */}
           {activeTab === 'powertrain' && (
             <FormSection title="🚗 Powertrain & Performance">
-              <InputField
+              <SelectField
                 label="Drivetrain"
                 value={variant.powertrain?.drivetrain}
                 onChange={(v) => updateCategory('powertrain', 'drivetrain', v)}
+                options={[
+                  { value: 'FWD', label: 'FWD (ขับหน้า)' },
+                  { value: 'RWD', label: 'RWD (ขับหลัง)' },
+                  { value: 'AWD', label: 'AWD (ขับ 4 ล้อ)' },
+                ]}
               />
               <InputField
                 label="Front Motor Type"
@@ -878,6 +903,36 @@ function InputField({
         placeholder={placeholder}
         className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg focus:border-emerald-500 focus:outline-none text-white"
       />
+    </div>
+  );
+}
+
+function SelectField({
+  label,
+  value,
+  onChange,
+  options,
+  placeholder = 'เลือก...',
+}: {
+  label: string;
+  value: any;
+  onChange: (value: string) => void;
+  options: { value: string; label: string }[];
+  placeholder?: string;
+}) {
+  return (
+    <div>
+      <label className="block text-sm text-slate-400 mb-1">{label}</label>
+      <select
+        value={value ?? ''}
+        onChange={(e) => onChange(e.target.value)}
+        className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg focus:border-emerald-500 focus:outline-none text-white"
+      >
+        <option value="">{placeholder}</option>
+        {options.map(opt => (
+          <option key={opt.value} value={opt.value}>{opt.label}</option>
+        ))}
+      </select>
     </div>
   );
 }
