@@ -588,6 +588,64 @@ export default function ModelDetailPage() {
             )}
           </div>
 
+          {/* External Links */}
+          {selectedVariant.externalLinks && Array.isArray(selectedVariant.externalLinks) && selectedVariant.externalLinks.length > 0 && (
+            <section className="mt-12 pt-8 border-t border-slate-700">
+              <h2 className="text-2xl font-bold text-white mb-6">
+                🔗 ลิงก์ที่เกี่ยวข้อง
+              </h2>
+              
+              {/* Group by type */}
+              {['official', 'review', 'news', 'spec', 'other'].map(type => {
+                const links = selectedVariant.externalLinks.filter((l: any) => l.type === type);
+                if (links.length === 0) return null;
+                
+                const typeLabels: Record<string, string> = {
+                  official: '🏢 เว็บไซต์ทางการ',
+                  review: '⭐ รีวิว',
+                  news: '📰 ข่าว',
+                  spec: '📋 สเปค',
+                  other: '🔗 อื่นๆ',
+                };
+                
+                return (
+                  <div key={type} className="mb-8">
+                    <h3 className="text-lg font-semibold text-slate-300 mb-4">{typeLabels[type]}</h3>
+                    <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {links.map((link: any, idx: number) => (
+                        <a
+                          key={idx}
+                          href={link.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="group bg-slate-800/50 border border-slate-700 rounded-xl overflow-hidden hover:border-emerald-500/50 transition-colors"
+                        >
+                          {link.ogImage && (
+                            <div className="aspect-video bg-slate-900 overflow-hidden">
+                              <img 
+                                src={link.ogImage} 
+                                alt={link.label}
+                                className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                              />
+                            </div>
+                          )}
+                          <div className="p-4">
+                            <div className="font-medium text-white group-hover:text-emerald-400 transition-colors">
+                              {link.label}
+                            </div>
+                            <div className="text-sm text-slate-500 truncate mt-1">
+                              {link.url.replace(/^https?:\/\//, '').split('/')[0]}
+                            </div>
+                          </div>
+                        </a>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </section>
+          )}
+
           {/* Back Link */}
           <div className="mt-16 pt-8 border-t border-slate-700">
             <Link

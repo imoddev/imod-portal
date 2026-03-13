@@ -14,6 +14,8 @@ interface ExternalLink {
   label: string;
   url: string;
   type: 'official' | 'review' | 'news' | 'spec' | 'other';
+  ogImage?: string;
+  ogTitle?: string;
 }
 
 interface Variant {
@@ -969,17 +971,31 @@ export default function EditVariantPage({ params }: { params: Promise<{ slug: st
                 <div className="flex items-end">
                   <button
                     type="button"
-                    onClick={() => {
+                    onClick={async () => {
                       const typeEl = document.getElementById('link-type') as HTMLSelectElement;
                       const labelEl = document.getElementById('link-label') as HTMLInputElement;
                       const urlEl = document.getElementById('link-url') as HTMLInputElement;
                       
                       if (labelEl.value && urlEl.value) {
+                        // Fetch OG data
+                        let ogImage = '';
+                        let ogTitle = '';
+                        try {
+                          const ogRes = await fetch(`/api/og-image?url=${encodeURIComponent(urlEl.value)}`);
+                          if (ogRes.ok) {
+                            const ogData = await ogRes.json();
+                            ogImage = ogData.ogImage || '';
+                            ogTitle = ogData.ogTitle || '';
+                          }
+                        } catch {}
+
                         const newLink: ExternalLink = {
                           id: Date.now().toString(),
                           type: typeEl.value as ExternalLink['type'],
                           label: labelEl.value,
                           url: urlEl.value,
+                          ogImage,
+                          ogTitle,
                         };
                         setExternalLinks([...externalLinks, newLink]);
                         labelEl.value = '';
@@ -1006,15 +1022,29 @@ export default function EditVariantPage({ params }: { params: Promise<{ slug: st
                       className="flex items-center justify-between p-3 bg-slate-900/50 rounded-lg border border-slate-700"
                     >
                       <div className="flex items-center gap-3">
-                        <span className="text-lg">
-                          {link.type === 'official' && '🏢'}
-                          {link.type === 'review' && '⭐'}
-                          {link.type === 'news' && '📰'}
-                          {link.type === 'spec' && '📋'}
-                          {link.type === 'other' && '🔗'}
-                        </span>
+                        {link.ogImage ? (
+                          <img 
+                            src={link.ogImage} 
+                            alt={link.label}
+                            className="w-16 h-16 object-cover rounded-lg"
+                            onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                          />
+                        ) : (
+                          <span className="text-2xl w-16 h-16 flex items-center justify-center bg-slate-800 rounded-lg">
+                            {link.type === 'official' && '🏢'}
+                            {link.type === 'review' && '⭐'}
+                            {link.type === 'news' && '📰'}
+                            {link.type === 'spec' && '📋'}
+                            {link.type === 'other' && '🔗'}
+                          </span>
+                        )}
                         <div>
-                          <div className="text-white font-medium">{link.label}</div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs px-2 py-0.5 rounded bg-slate-700 text-slate-300">
+                              {link.type}
+                            </span>
+                            <span className="text-white font-medium">{link.label}</span>
+                          </div>
                           <a
                             href={link.url}
                             target="_blank"
