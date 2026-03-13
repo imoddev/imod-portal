@@ -298,10 +298,35 @@ export default function EditVariantPage({ params }: { params: Promise<{ slug: st
         </div>
       </header>
 
-      {/* Main Layout: Form + Sidebar */}
+      {/* Main Layout: Sidebar + Form */}
       <main className="container mx-auto px-4 py-8">
         <div className="flex gap-6">
-          {/* Form Content (Left - Main Area) */}
+          {/* Sidebar Navigation (Left) */}
+          <aside className="w-56 flex-shrink-0">
+            <div className="sticky top-24">
+              <div className="bg-slate-800/50 backdrop-blur-sm rounded-2xl p-4 border border-slate-700">
+                <h3 className="text-sm font-semibold text-slate-400 mb-3 px-2">📂 หมวดหมู่</h3>
+                <nav className="space-y-1">
+                  {tabs.map(tab => (
+                    <button
+                      key={tab.id}
+                      onClick={() => setActiveTab(tab.id)}
+                      className={`w-full text-left px-3 py-2.5 rounded-lg transition-colors flex items-center gap-2 ${
+                        activeTab === tab.id
+                          ? 'bg-emerald-500 text-white font-medium'
+                          : 'text-slate-300 hover:bg-slate-700/50'
+                      }`}
+                    >
+                      <span>{tab.icon}</span>
+                      <span className="text-sm">{tab.label.split(' ').slice(1).join(' ')}</span>
+                    </button>
+                  ))}
+                </nav>
+              </div>
+            </div>
+          </aside>
+
+          {/* Form Content (Right - Main Area) */}
           <div className="flex-1 min-w-0">
             <form onSubmit={handleSave}>
           
@@ -902,31 +927,6 @@ export default function EditVariantPage({ params }: { params: Promise<{ slug: st
           </div>
             </form>
           </div>
-
-          {/* Sidebar Navigation (Right) */}
-          <aside className="w-56 flex-shrink-0">
-            <div className="sticky top-24">
-              <div className="bg-slate-800/50 backdrop-blur-sm rounded-2xl p-4 border border-slate-700">
-                <h3 className="text-sm font-semibold text-slate-400 mb-3 px-2">📂 หมวดหมู่</h3>
-                <nav className="space-y-1">
-                  {tabs.map(tab => (
-                    <button
-                      key={tab.id}
-                      onClick={() => setActiveTab(tab.id)}
-                      className={`w-full text-left px-3 py-2.5 rounded-lg transition-colors flex items-center gap-2 ${
-                        activeTab === tab.id
-                          ? 'bg-emerald-500 text-white font-medium'
-                          : 'text-slate-300 hover:bg-slate-700/50'
-                      }`}
-                    >
-                      <span>{tab.icon}</span>
-                      <span className="text-sm">{tab.label.split(' ').slice(1).join(' ')}</span>
-                    </button>
-                  ))}
-                </nav>
-              </div>
-            </div>
-          </aside>
         </div>
       </main>
     </div>
