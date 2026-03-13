@@ -1,9 +1,12 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { FeatureCheckboxList } from '@/components/nev/FeatureCheckboxList';
+
+// Cache key prefix
+const CACHE_PREFIX = 'nev_variant_draft_';
 
 interface Variant {
   id: string;
@@ -68,22 +71,70 @@ export default function EditVariantPage({ params }: { params: Promise<{ slug: st
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState('basic');
+  const [hasDraft, setHasDraft] = useState(false);
+  const [lastSaved, setLastSaved] = useState<string | null>(null);
+  const slugRef = useRef<string>('');
 
+  // Load variant and check for cached draft
   useEffect(() => {
     params.then(p => {
+      slugRef.current = p.slug;
+      const cacheKey = CACHE_PREFIX + p.slug;
+      
       fetch(`/api/nev/admin/variants/${p.slug}`)
         .then(r => r.json())
         .then(data => {
           if (data.error) {
             setVariant(null);
           } else {
-            setVariant(data);
+            // Check for cached draft
+            const cached = localStorage.getItem(cacheKey);
+            if (cached) {
+              try {
+                const draft = JSON.parse(cached);
+                if (draft.timestamp) {
+                  setHasDraft(true);
+                  // Ask user if they want to restore draft
+                  const draftTime = new Date(draft.timestamp).toLocaleString('th-TH');
+                  if (confirm(`พบข้อมูลที่ยังไม่ได้บันทึก (${draftTime})\n\nต้องการกู้คืนข้อมูลหรือไม่?`)) {
+                    setVariant({ ...data, ...draft.data });
+                    setLastSaved(draftTime);
+                  } else {
+                    localStorage.removeItem(cacheKey);
+                    setVariant(data);
+                  }
+                } else {
+                  setVariant(data);
+                }
+              } catch {
+                setVariant(data);
+              }
+            } else {
+              setVariant(data);
+            }
           }
           setLoading(false);
         })
         .catch(() => setLoading(false));
     });
   }, [params]);
+
+  // Auto-save draft to localStorage (debounced)
+  useEffect(() => {
+    if (!variant || !slugRef.current) return;
+    
+    const timer = setTimeout(() => {
+      const cacheKey = CACHE_PREFIX + slugRef.current;
+      const draft = {
+        timestamp: new Date().toISOString(),
+        data: variant,
+      };
+      localStorage.setItem(cacheKey, JSON.stringify(draft));
+      setLastSaved(new Date().toLocaleTimeString('th-TH'));
+    }, 2000); // Auto-save after 2 seconds of no changes
+    
+    return () => clearTimeout(timer);
+  }, [variant]);
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -127,6 +178,9 @@ export default function EditVariantPage({ params }: { params: Promise<{ slug: st
       });
 
       if (res.ok) {
+        // Clear draft cache on successful save
+        localStorage.removeItem(CACHE_PREFIX + slugRef.current);
+        setHasDraft(false);
         alert('✅ บันทึกสำเร็จ!');
       } else {
         const data = await res.json();
@@ -227,6 +281,11 @@ export default function EditVariantPage({ params }: { params: Promise<{ slug: st
               >
                 ← ยกเลิก
               </Link>
+              {lastSaved && (
+                <span className="text-xs text-slate-400 self-center">
+                  💾 Auto-saved: {lastSaved}
+                </span>
+              )}
               <button
                 onClick={handleSave}
                 disabled={saving}
@@ -239,30 +298,12 @@ export default function EditVariantPage({ params }: { params: Promise<{ slug: st
         </div>
       </header>
 
-      {/* Tabs */}
-      <div className="bg-slate-800/30 border-b border-slate-700 sticky top-[88px] z-40">
-        <div className="container mx-auto px-4">
-          <div className="flex gap-2 overflow-x-auto pb-2 pt-2">
-            {tabs.map(tab => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`px-4 py-2 rounded-lg whitespace-nowrap transition-colors ${
-                  activeTab === tab.id
-                    ? 'bg-emerald-500 text-white'
-                    : 'bg-slate-700/50 text-slate-300 hover:bg-slate-600'
-                }`}
-              >
-                {tab.icon} {tab.label.split(' ')[1]}
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* Form Content */}
+      {/* Main Layout: Form + Sidebar */}
       <main className="container mx-auto px-4 py-8">
-        <form onSubmit={handleSave} className="max-w-5xl mx-auto">
+        <div className="flex gap-6">
+          {/* Form Content (Left - Main Area) */}
+          <div className="flex-1 min-w-0">
+            <form onSubmit={handleSave}>
           
           {/* Features Checkbox */}
           {activeTab === 'features' && (
@@ -859,7 +900,34 @@ export default function EditVariantPage({ params }: { params: Promise<{ slug: st
               {saving ? '⏳ กำลังบันทึก...' : '💾 บันทึกการเปลี่ยนแปลง'}
             </button>
           </div>
-        </form>
+            </form>
+          </div>
+
+          {/* Sidebar Navigation (Right) */}
+          <aside className="w-56 flex-shrink-0">
+            <div className="sticky top-24">
+              <div className="bg-slate-800/50 backdrop-blur-sm rounded-2xl p-4 border border-slate-700">
+                <h3 className="text-sm font-semibold text-slate-400 mb-3 px-2">📂 หมวดหมู่</h3>
+                <nav className="space-y-1">
+                  {tabs.map(tab => (
+                    <button
+                      key={tab.id}
+                      onClick={() => setActiveTab(tab.id)}
+                      className={`w-full text-left px-3 py-2.5 rounded-lg transition-colors flex items-center gap-2 ${
+                        activeTab === tab.id
+                          ? 'bg-emerald-500 text-white font-medium'
+                          : 'text-slate-300 hover:bg-slate-700/50'
+                      }`}
+                    >
+                      <span>{tab.icon}</span>
+                      <span className="text-sm">{tab.label.split(' ').slice(1).join(' ')}</span>
+                    </button>
+                  ))}
+                </nav>
+              </div>
+            </div>
+          </aside>
+        </div>
       </main>
     </div>
   );
