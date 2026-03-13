@@ -107,10 +107,12 @@ export default function EditVariantPage({ params }: { params: Promise<{ slug: st
                   const draftTime = new Date(draft.timestamp).toLocaleString('th-TH');
                   if (confirm(`พบข้อมูลที่ยังไม่ได้บันทึก (${draftTime})\n\nต้องการกู้คืนข้อมูลหรือไม่?`)) {
                     setVariant({ ...data, ...draft.data });
+                    setExternalLinks(draft.data?.externalLinks || data.externalLinks || []);
                     setLastSaved(draftTime);
                   } else {
                     localStorage.removeItem(cacheKey);
                     setVariant(data);
+                    setExternalLinks(data.externalLinks || []);
                   }
                 } else {
                   setVariant(data);
@@ -120,6 +122,7 @@ export default function EditVariantPage({ params }: { params: Promise<{ slug: st
               }
             } else {
               setVariant(data);
+              setExternalLinks(data.externalLinks || []);
             }
           }
           setLoading(false);
@@ -183,6 +186,8 @@ export default function EditVariantPage({ params }: { params: Promise<{ slug: st
           multimedia: variant.multimedia,
           interior: variant.interior,
           exterior: variant.exterior,
+          // External Links
+          externalLinks: externalLinks,
         }),
       });
 

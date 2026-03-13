@@ -112,6 +112,8 @@ export async function PUT(
         dcChargeKw: body.dcChargeKw,
         dcChargeMin: body.dcChargeMin,
         imageUrl: body.imageUrl,
+        // External Links
+        externalLinks: body.externalLinks ?? undefined,
       },
     });
 

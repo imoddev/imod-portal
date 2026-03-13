@@ -792,6 +792,9 @@ model NevVariant {
   v2lKw        Float?
   hasV2g       Boolean  @default(false)
   
+  // External Links (Related websites, reviews, brochures, etc.)
+  externalLinks Json?   // [{label: "Official Site", url: "https://...", type: "official"}, ...]
+  
   // Status
   isActive     Boolean  @default(true)
   isBestSeller Boolean  @default(false)
