@@ -180,6 +180,12 @@ interface Variant {
   battery?: Battery | null;
   dimensions?: Dimensions | null;
   evFeatures?: EVFeatures | null;
+  externalLinks?: Array<{
+    type: string;
+    label: string;
+    url: string;
+    ogImage?: string;
+  }> | null;
 }
 
 interface Model {
