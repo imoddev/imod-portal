@@ -8,6 +8,14 @@ import { FeatureCheckboxList } from '@/components/nev/FeatureCheckboxList';
 // Cache key prefix
 const CACHE_PREFIX = 'nev_variant_draft_';
 
+// External Link interface
+interface ExternalLink {
+  id: string;
+  label: string;
+  url: string;
+  type: 'official' | 'review' | 'news' | 'spec' | 'other';
+}
+
 interface Variant {
   id: string;
   name: string;
@@ -73,6 +81,7 @@ export default function EditVariantPage({ params }: { params: Promise<{ slug: st
   const [activeTab, setActiveTab] = useState('basic');
   const [hasDraft, setHasDraft] = useState(false);
   const [lastSaved, setLastSaved] = useState<string | null>(null);
+  const [externalLinks, setExternalLinks] = useState<ExternalLink[]>([]);
   const slugRef = useRef<string>('');
 
   // Load variant and check for cached draft
@@ -249,6 +258,7 @@ export default function EditVariantPage({ params }: { params: Promise<{ slug: st
     { id: 'multimedia', label: '📱 Multimedia', icon: '📱' },
     { id: 'interior', label: '🪑 Interior', icon: '🪑' },
     { id: 'exterior', label: '💡 Exterior', icon: '💡' },
+    { id: 'links', label: '🔗 External Links', icon: '🔗' },
   ];
 
   return (
@@ -907,6 +917,121 @@ export default function EditVariantPage({ params }: { params: Promise<{ slug: st
                 onChange={(v) => updateCategory('exterior', 'doorHandlesRetractable', v)}
               />
             </FormSection>
+          )}
+
+          {/* External Links */}
+          {activeTab === 'links' && (
+            <div className="bg-slate-800/50 backdrop-blur-sm rounded-2xl p-6 border border-slate-700">
+              <h2 className="text-xl font-bold text-white mb-6">🔗 External Links</h2>
+              <p className="text-slate-400 mb-4 text-sm">
+                เพิ่มลิงก์เว็บไซต์ที่เกี่ยวข้องกับรถรุ่นนี้ เช่น หน้าเว็บทางการ, รีวิว, ข่าว, สเปค
+              </p>
+              
+              {/* Add new link */}
+              <div className="grid md:grid-cols-4 gap-4 mb-6 p-4 bg-slate-900/50 rounded-lg border border-slate-700">
+                <div>
+                  <label className="block text-sm text-slate-400 mb-1">ประเภท</label>
+                  <select
+                    id="link-type"
+                    defaultValue="official"
+                    className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg focus:border-emerald-500 focus:outline-none text-white"
+                  >
+                    <option value="official">🏢 Official</option>
+                    <option value="review">⭐ Review</option>
+                    <option value="news">📰 News</option>
+                    <option value="spec">📋 Spec Sheet</option>
+                    <option value="other">🔗 Other</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm text-slate-400 mb-1">ชื่อลิงก์</label>
+                  <input
+                    id="link-label"
+                    type="text"
+                    placeholder="เช่น BYD Thailand"
+                    className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg focus:border-emerald-500 focus:outline-none text-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm text-slate-400 mb-1">URL</label>
+                  <input
+                    id="link-url"
+                    type="url"
+                    placeholder="https://..."
+                    className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg focus:border-emerald-500 focus:outline-none text-white"
+                  />
+                </div>
+                <div className="flex items-end">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const typeEl = document.getElementById('link-type') as HTMLSelectElement;
+                      const labelEl = document.getElementById('link-label') as HTMLInputElement;
+                      const urlEl = document.getElementById('link-url') as HTMLInputElement;
+                      
+                      if (labelEl.value && urlEl.value) {
+                        const newLink: ExternalLink = {
+                          id: Date.now().toString(),
+                          type: typeEl.value as ExternalLink['type'],
+                          label: labelEl.value,
+                          url: urlEl.value,
+                        };
+                        setExternalLinks([...externalLinks, newLink]);
+                        labelEl.value = '';
+                        urlEl.value = '';
+                      }
+                    }}
+                    className="w-full px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg transition-colors font-semibold"
+                  >
+                    ➕ เพิ่มลิงก์
+                  </button>
+                </div>
+              </div>
+              
+              {/* Links list */}
+              {externalLinks.length === 0 ? (
+                <div className="text-center py-8 text-slate-500">
+                  ยังไม่มีลิงก์ — เพิ่มลิงก์แรกด้านบน
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {externalLinks.map((link) => (
+                    <div
+                      key={link.id}
+                      className="flex items-center justify-between p-3 bg-slate-900/50 rounded-lg border border-slate-700"
+                    >
+                      <div className="flex items-center gap-3">
+                        <span className="text-lg">
+                          {link.type === 'official' && '🏢'}
+                          {link.type === 'review' && '⭐'}
+                          {link.type === 'news' && '📰'}
+                          {link.type === 'spec' && '📋'}
+                          {link.type === 'other' && '🔗'}
+                        </span>
+                        <div>
+                          <div className="text-white font-medium">{link.label}</div>
+                          <a
+                            href={link.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-sm text-emerald-400 hover:underline truncate block max-w-md"
+                          >
+                            {link.url}
+                          </a>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setExternalLinks(externalLinks.filter(l => l.id !== link.id))}
+                        className="p-2 text-red-400 hover:bg-red-500/20 rounded-lg transition-colors"
+                      >
+                        🗑️
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           )}
 
           {/* Save Button (bottom) */}
