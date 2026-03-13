@@ -603,7 +603,7 @@ export default function ModelDetailPage() {
               
               {/* Group by type */}
               {['official', 'review', 'news', 'spec', 'other'].map(type => {
-                const links = selectedVariant.externalLinks.filter((l: any) => l.type === type);
+                const links = (selectedVariant.externalLinks || []).filter((l: any) => l.type === type);
                 if (links.length === 0) return null;
                 
                 const typeLabels: Record<string, string> = {
