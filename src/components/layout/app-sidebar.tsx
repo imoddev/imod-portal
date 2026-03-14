@@ -48,6 +48,7 @@ import {
   UserCircle,
   Shield,
   BarChart2,
+  Car,
 } from "lucide-react";
 
 // Menu items with access requirements
@@ -59,6 +60,7 @@ const allMenuItems = [
   // Content tools (content teams + general)
   { title: "Content Hub", url: "/content", icon: Newspaper, group: "content" },
   { title: "News DB", url: "/content/news", icon: Database, group: "content" },
+  { title: "NEV Database", url: "/nev", icon: Car, group: "content" },
   { title: "My Tasks", url: "/my-tasks", icon: ClipboardList, group: "content" },
   { title: "Draft Generator", url: "/draft", icon: FileEdit, group: "content" },
   { title: "Templates", url: "/templates", icon: FileText, group: "content" },
