@@ -425,6 +425,27 @@ export default function EVComparePage() {
     }, 2000);
   };
 
+  const requestNewCarAddition = async (carName: string) => {
+    try {
+      const response = await fetch('/api/nev/add-new', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ carName }),
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        alert(`✅ ${result.message}\n\nAI จะค้นหาข้อมูล ${carName} และเพิ่มเข้าระบบโดยอัตโนมัติ (ประมาณ 5-10 นาที)\n\nแจ้งเตือนผ่าน Discord เมื่อเสร็จสิ้น`);
+      } else {
+        const error = await response.json();
+        alert(`❌ เกิดข้อผิดพลาด: ${error.error || 'ไม่สามารถส่งคำขอได้'}`);
+      }
+    } catch (error) {
+      console.error('Add new car request failed:', error);
+      alert('❌ เกิดข้อผิดพลาดในการเชื่อมต่อ กรุณาลองใหม่อีกครั้ง');
+    }
+  };
+
   const requestDataEnrichment = async (car: EVSpec) => {
     if (!confirm(`🔍 ต้องการให้ AI ค้นหาข้อมูล ${car.name} เพิ่มเติมใช่หรือไม่?\n\nAI จะค้นหาจากเว็บไซต์อย่างเป็นทางการและอัปเดตลงฐานข้อมูล`)) {
       return;
@@ -757,9 +778,26 @@ export default function EVComparePage() {
               ))}
               
               {filteredEVs.length === 0 && (
-                <div className="col-span-full text-center py-12 text-gray-500">
-                  <p className="text-lg">ไม่พบรถที่ตรงกับเงื่อนไข</p>
-                  <p className="text-sm mt-2">ลองปรับฟิลเตอร์ใหม่</p>
+                <div className="col-span-full text-center py-12">
+                  <div className="text-gray-500 mb-6">
+                    <p className="text-lg font-semibold">ไม่พบรถที่ตรงกับเงื่อนไข</p>
+                    <p className="text-sm mt-2">ลองปรับฟิลเตอร์ใหม่ หรือ</p>
+                  </div>
+                  <button
+                    onClick={() => {
+                      const carName = prompt('ชื่อรถที่ต้องการเพิ่ม (เช่น BYD SEAL 2024):');
+                      if (carName) {
+                        requestNewCarAddition(carName);
+                      }
+                    }}
+                    className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-lg hover:shadow-lg transition-all"
+                  >
+                    <Plus size={20} />
+                    <span>เพิ่มรถใหม่เข้าระบบ</span>
+                  </button>
+                  <p className="text-xs text-gray-500 mt-4">
+                    AI จะค้นหาข้อมูลและเพิ่มเข้า NEV Database ให้อัตโนมัติ
+                  </p>
                 </div>
               )}
             </div>
