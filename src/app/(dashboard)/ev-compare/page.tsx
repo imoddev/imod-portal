@@ -307,6 +307,11 @@ export default function EVComparePage() {
   const [priceRange, setPriceRange] = useState<[number, number]>([0, 5000000]);
   const [sortBy, setSortBy] = useState<"price" | "range" | "power">("price");
   
+  // Auto-save state
+  const [isSaving, setIsSaving] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  
   const comparisonRef = useRef<HTMLDivElement>(null);
 
   // Load data from NEV Database
@@ -381,6 +386,7 @@ export default function EVComparePage() {
   };
 
   const updateCarSpec = (carId: string, specKey: string, value: string) => {
+    // อัปเดต local state ทันที
     setSelectedCars(
       selectedCars.map((car) =>
         car.id === carId
@@ -388,6 +394,35 @@ export default function EVComparePage() {
           : car
       )
     );
+
+    // Auto-save หลัง 2 วินาที (debounced)
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+    }
+
+    saveTimeoutRef.current = setTimeout(async () => {
+      setIsSaving(true);
+      try {
+        const response = await fetch('/api/nev/update', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            variantId: carId,
+            field: specKey,
+            value: value,
+          }),
+        });
+
+        if (response.ok) {
+          const result = await response.json();
+          setLastUpdated(new Date(result.updatedAt));
+        }
+      } catch (error) {
+        console.error('Auto-save failed:', error);
+      } finally {
+        setIsSaving(false);
+      }
+    }, 2000);
   };
 
   const requestDataEnrichment = async (car: EVSpec) => {
@@ -821,13 +856,39 @@ export default function EVComparePage() {
             </div>
 
             {/* Footer */}
-            <div className="mt-6 pt-4 border-t text-center text-sm text-gray-500">
-              สร้างโดย iMoD Drive — ข้อมูล ณ วันที่{" "}
-              {new Date().toLocaleDateString("th-TH", {
-                year: "numeric",
-                month: "long",
-                day: "numeric",
-              })}
+            <div className="mt-6 pt-4 border-t text-center">
+              <div className="text-sm text-gray-500 mb-2">
+                สร้างโดย iMoD Drive — ข้อมูล ณ วันที่{" "}
+                {new Date().toLocaleDateString("th-TH", {
+                  year: "numeric",
+                  month: "long",
+                  day: "numeric",
+                })}
+              </div>
+              {!isExporting && (
+                <div className="text-xs text-gray-400 space-y-1">
+                  {isSaving && (
+                    <p className="text-blue-600">💾 กำลังบันทึก...</p>
+                  )}
+                  {lastUpdated && (
+                    <p>
+                      อัปเดตล่าสุด:{" "}
+                      {lastUpdated.toLocaleDateString("th-TH", {
+                        year: "numeric",
+                        month: "short",
+                        day: "numeric",
+                      })}{" "}
+                      {lastUpdated.toLocaleTimeString("th-TH", {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })} น.
+                    </p>
+                  )}
+                  <p className="text-green-600">
+                    ✅ แก้ไขข้อมูลได้ — บันทึกอัตโนมัติลง NEV Database
+                  </p>
+                </div>
+              )}
             </div>
           </div>
         ) : (
