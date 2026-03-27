@@ -563,6 +563,34 @@ export default function EVComparePage() {
     );
   };
 
+  // Helper: Format spec values (trim verbose text)
+  const formatSpecValue = (key: string, value: string | number | undefined): string => {
+    if (!value || value === '-') return '-';
+    
+    const str = String(value);
+    
+    // DC Charging: "DC 70 kW (10-80% ใน 27 นาที)" → "70 kW"
+    if (key === 'chargingDC') {
+      const match = str.match(/(\d+\.?\d*)\s*kW/);
+      return match ? `${match[1]} kW` : str;
+    }
+    
+    // AC Charging: "AC 11 kW" → "11 kW"
+    if (key === 'chargingAC') {
+      const match = str.match(/(\d+\.?\d*)\s*kW/);
+      return match ? `${match[1]} kW` : str;
+    }
+    
+    // V2L: "รองรับ V2L 3.3 kW" → "3.3 kW" | "ไม่รองรับ" → "-"
+    if (key === 'v2l') {
+      if (str.includes('ไม่รองรับ')) return '-';
+      const match = str.match(/(\d+\.?\d*)\s*kW/);
+      return match ? `${match[1]} kW` : str;
+    }
+    
+    return str;
+  };
+
   const handleDragStart = (index: number) => {
     setDraggedIndex(index);
   };
@@ -1203,7 +1231,7 @@ export default function EVComparePage() {
                     }`}>
                       <input
                         type="text"
-                        value={car.specs[field.key] || "-"}
+                        value={formatSpecValue(field.key, car.specs[field.key])}
                         onChange={(e) => updateCarSpec(car.id, field.key, e.target.value)}
                         className={`w-full text-center text-base font-normal bg-transparent border-none focus:outline-none focus:ring-2 rounded px-2 py-0.5 leading-tight ${
                           bgTheme === "dark" || bgTheme === "purple"
