@@ -833,16 +833,16 @@ export default function EVComparePage() {
                 <button
                   key={ev.id}
                   onClick={() => addCar(ev)}
-                  className="p-4 border border-gray-200 rounded-lg hover:border-purple-500 hover:shadow-md transition-all text-left"
+                  className="p-5 border-2 border-gray-300 rounded-lg hover:border-purple-500 hover:shadow-lg transition-all text-left bg-white"
                 >
-                  <div className="flex justify-between items-start mb-2">
-                    <h3 className="font-semibold text-lg leading-tight">{ev.name}</h3>
-                    <span className="text-xs bg-gray-100 px-2 py-1 rounded shrink-0">{ev.brand}</span>
+                  <div className="flex justify-between items-start mb-3">
+                    <h3 className="font-bold text-xl leading-tight text-gray-900">{ev.name}</h3>
+                    <span className="text-sm font-medium bg-gray-200 text-gray-800 px-3 py-1 rounded-full shrink-0">{ev.brand}</span>
                   </div>
-                  <p className="text-purple-600 font-bold text-xl mb-2">
+                  <p className="text-purple-600 font-bold text-2xl mb-3">
                     {ev.price.toLocaleString()} ฿
                   </p>
-                  <div className="text-sm text-gray-600 space-y-1">
+                  <div className="text-base text-gray-700 space-y-2 font-medium">
                     <p>⚡ {ev.specs.horsepower || '-'}</p>
                     <p>🔋 {ev.specs.battery || '-'}</p>
                     <p>📍 {ev.specs.range || '-'}</p>
@@ -929,9 +929,9 @@ export default function EVComparePage() {
                         )}
                       </>
                     )}
-                    <h3 className="font-bold text-lg mb-1">{car.model}</h3>
-                    <p className="text-sm text-gray-600 mb-2">{car.brand}</p>
-                    <p className="text-purple-600 font-bold">{car.price.toLocaleString()} ฿</p>
+                    <h3 className="font-bold text-xl mb-2">{car.model}</h3>
+                    <p className="text-base text-gray-700 mb-2 font-medium">{car.brand}</p>
+                    <p className="text-purple-600 font-bold text-lg">{car.price.toLocaleString()} ฿</p>
                     {hasIncompleteData && !isExporting && (
                       <p className="text-xs text-orange-600 mt-1">
                         ข้อมูลไม่ครบ {missingCount} รายการ
@@ -944,16 +944,16 @@ export default function EVComparePage() {
               {/* Specs Rows */}
               {enabledSpecs.map((field) => (
                 <div key={field.key} className="contents">
-                  <div className="font-semibold text-gray-700 py-3 px-4 bg-gray-50 rounded-lg flex items-center">
+                  <div className="font-bold text-base text-gray-800 py-4 px-4 bg-gray-100 rounded-lg flex items-center">
                     {field.label}
                   </div>
                   {selectedCars.map((car) => (
-                    <div key={car.id} className="py-3 px-4 text-center border-b border-gray-100">
+                    <div key={car.id} className="py-4 px-4 text-center border-b border-gray-200">
                       <input
                         type="text"
                         value={car.specs[field.key] || "-"}
                         onChange={(e) => updateCarSpec(car.id, field.key, e.target.value)}
-                        className="w-full text-center bg-transparent border-none focus:bg-yellow-50 focus:outline-none focus:ring-2 focus:ring-purple-200 rounded px-2 py-1"
+                        className="w-full text-center text-base font-medium text-gray-900 bg-transparent border-none focus:bg-yellow-50 focus:outline-none focus:ring-2 focus:ring-purple-300 rounded px-3 py-2"
                       />
                     </div>
                   ))}
