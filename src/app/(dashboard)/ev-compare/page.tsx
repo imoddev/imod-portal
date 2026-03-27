@@ -929,9 +929,9 @@ export default function EVComparePage() {
                         )}
                       </>
                     )}
-                    <div className="text-base font-bold text-gray-900 leading-tight mb-1">{car.brand} - {car.model}</div>
-                    <div className="text-sm text-gray-600 leading-tight mb-1">{car.name}</div>
-                    <div className="text-purple-600 font-bold text-base leading-tight">{car.price.toLocaleString()} ฿</div>
+                    <div className="text-lg font-bold text-gray-900 leading-tight mb-1">{car.brand} - {car.model}</div>
+                    <div className="text-base text-gray-700 leading-tight mb-1">{car.name.replace(`${car.brand} ${car.model} `, '')}</div>
+                    <div className="text-purple-600 font-bold text-xl leading-tight">{car.price.toLocaleString()} ฿</div>
                     {hasIncompleteData && !isExporting && (
                       <p className="text-xs text-orange-600 mt-1">
                         ข้อมูลไม่ครบ {missingCount} รายการ
@@ -944,16 +944,17 @@ export default function EVComparePage() {
               {/* Specs Rows */}
               {enabledSpecs.map((field) => (
                 <div key={field.key} className="contents">
-                  <div className="font-bold text-lg text-gray-900 py-2 px-4 bg-gray-100 rounded-lg flex items-center">
+                  <div className="font-bold text-lg text-gray-900 py-1 px-3 bg-gray-100 rounded-lg flex items-center leading-tight">
                     {field.label}
                   </div>
                   {selectedCars.map((car) => (
-                    <div key={car.id} className="py-2 px-4 text-center border-b border-gray-200">
+                    <div key={car.id} className="py-1 px-3 text-center border-b border-gray-200">
                       <input
                         type="text"
                         value={car.specs[field.key] || "-"}
                         onChange={(e) => updateCarSpec(car.id, field.key, e.target.value)}
-                        className="w-full text-center text-base font-medium text-gray-900 bg-transparent border-none focus:bg-yellow-50 focus:outline-none focus:ring-2 focus:ring-purple-300 rounded px-2 py-1"
+                        className="w-full text-center text-base font-normal text-gray-900 bg-transparent border-none focus:bg-yellow-50 focus:outline-none focus:ring-2 focus:ring-purple-300 rounded px-2 py-0.5 leading-tight placeholder-gray-400"
+                        style={{ color: '#000000' }}
                       />
                     </div>
                   ))}
