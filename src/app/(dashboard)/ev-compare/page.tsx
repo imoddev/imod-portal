@@ -1143,7 +1143,6 @@ export default function EVComparePage() {
                                     c.id === car.id ? { ...c, image: url || undefined } : c
                                   );
                                   setSelectedCars(updatedCars);
-                                  triggerAutoSave(updatedCars);
                                 }
                               }}
                               className="bg-blue-500 text-white rounded-full p-1 hover:bg-blue-600"
@@ -1157,7 +1156,6 @@ export default function EVComparePage() {
                                   c.id === car.id ? { ...c, image: undefined } : c
                                 );
                                 setSelectedCars(updatedCars);
-                                triggerAutoSave(updatedCars);
                               }}
                               className="bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
                               title="ลบรูป"
@@ -1181,7 +1179,6 @@ export default function EVComparePage() {
                                     c.id === car.id ? { ...c, image: url } : c
                                   );
                                   setSelectedCars(updatedCars);
-                                  triggerAutoSave(updatedCars);
                                 }
                               }}
                               className="text-xs px-3 py-1 bg-purple-100 text-purple-700 rounded hover:bg-purple-200 transition flex items-center gap-1"
@@ -1206,7 +1203,6 @@ export default function EVComparePage() {
                                         c.id === car.id ? { ...c, image: dataUrl } : c
                                       );
                                       setSelectedCars(updatedCars);
-                                      triggerAutoSave(updatedCars);
                                     };
                                     reader.readAsDataURL(file);
                                   }
