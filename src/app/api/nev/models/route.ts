@@ -7,9 +7,23 @@ export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const brandId = searchParams.get('brandId');
+    const brandName = searchParams.get('brand'); // Support ?brand=Tesla
+
+    let whereClause: any = undefined;
+
+    if (brandId) {
+      whereClause = { brandId };
+    } else if (brandName) {
+      // Filter by brand name
+      whereClause = {
+        brand: {
+          name: brandName,
+        },
+      };
+    }
 
     const models = await prisma.nevModel.findMany({
-      where: brandId ? { brandId } : undefined,
+      where: whereClause,
       select: {
         id: true,
         name: true,

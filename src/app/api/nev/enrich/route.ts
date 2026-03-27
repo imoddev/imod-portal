@@ -106,10 +106,14 @@ Variant ID: ${variantId}
       message: `📝 บันทึกคำขอสำหรับ ${brand} ${variantName} แล้ว\n\nRequest ID: ${enrichmentRequest.id}\n\nระบบจะแจ้งเตือนผ่าน Discord เมื่อเสร็จสิ้น`,
       requestId: enrichmentRequest.id,
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Enrich request failed:', error);
+    
+    // แสดง error ที่ชัดเจน
+    const errorMessage = error.message || error.toString() || 'Failed to send enrichment request';
+    
     return NextResponse.json(
-      { error: 'Failed to send enrichment request' },
+      { error: errorMessage },
       { status: 500 }
     );
   }

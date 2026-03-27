@@ -127,10 +127,14 @@ ${brochureUrl ? `2. โบรชัวร์: ${brochureUrl} (ใช้ OCR Trip
       message: `บันทึกคำขอเพิ่ม ${carName} แล้ว`,
       requestId: addRequest.id,
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Add new car request failed:', error);
+    
+    // แสดง error ที่ชัดเจน
+    const errorMessage = error.message || error.toString() || 'Failed to send request';
+    
     return NextResponse.json(
-      { error: 'Failed to send request' },
+      { error: errorMessage },
       { status: 500 }
     );
   }
