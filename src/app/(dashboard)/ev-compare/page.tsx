@@ -356,13 +356,13 @@ export default function EVComparePage() {
     .sort((a, b) => {
       if (sortBy === "price") return a.price - b.price;
       if (sortBy === "range") {
-        const rangeA = parseInt(a.specs.range?.split(" ")[0] || "0");
-        const rangeB = parseInt(b.specs.range?.split(" ")[0] || "0");
+        const rangeA = parseInt(String(a.specs.range || "0").split(" ")[0] || "0");
+        const rangeB = parseInt(String(b.specs.range || "0").split(" ")[0] || "0");
         return rangeB - rangeA;
       }
       if (sortBy === "power") {
-        const powerA = parseInt(a.specs.horsepower?.split(" ")[0] || "0");
-        const powerB = parseInt(b.specs.horsepower?.split(" ")[0] || "0");
+        const powerA = parseInt(String(a.specs.horsepower || "0").split(" ")[0] || "0");
+        const powerB = parseInt(String(b.specs.horsepower || "0").split(" ")[0] || "0");
         return powerB - powerA;
       }
       return 0;
