@@ -390,6 +390,34 @@ export default function EVComparePage() {
     );
   };
 
+  const requestDataEnrichment = async (car: EVSpec) => {
+    if (!confirm(`ต้องการให้ Marcus-EV ค้นหาข้อมูล ${car.name} เพิ่มเติมใช่หรือไม่?`)) {
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/nev/enrich', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          variantId: car.id,
+          variantName: car.name,
+          brand: car.brand,
+          model: car.model,
+        }),
+      });
+
+      if (response.ok) {
+        alert('✅ ส่งคำขอไป Marcus-EV แล้ว — กำลังค้นหาข้อมูล (ประมาณ 3-5 นาที)');
+      } else {
+        alert('❌ ส่งคำขอล้มเหลว กรุณาลองใหม่อีกครั้ง');
+      }
+    } catch (error) {
+      console.error('Enrich request failed:', error);
+      alert('❌ เกิดข้อผิดพลาด');
+    }
+  };
+
   const toggleSpecField = (key: string) => {
     setSpecFields(
       specFields.map((field) =>
@@ -722,28 +750,53 @@ export default function EVComparePage() {
             >
               {/* Header Row - Car Names */}
               <div></div>
-              {selectedCars.map((car, index) => (
-                <div
-                  key={car.id}
-                  draggable
-                  onDragStart={() => handleDragStart(index)}
-                  onDragOver={(e) => handleDragOver(e, index)}
-                  className="text-center p-4 bg-gradient-to-br from-purple-50 to-pink-50 rounded-lg relative cursor-move"
-                >
-                  <GripVertical className="absolute top-2 left-2 text-gray-400" size={16} />
-                  {!isExporting && (
-                    <button
-                      onClick={() => removeCar(car.id)}
-                      className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
-                    >
-                      <X size={16} />
-                    </button>
-                  )}
-                  <h3 className="font-bold text-lg mb-1">{car.model}</h3>
-                  <p className="text-sm text-gray-600 mb-2">{car.brand}</p>
-                  <p className="text-purple-600 font-bold">{car.price.toLocaleString()} ฿</p>
-                </div>
-              ))}
+              {selectedCars.map((car, index) => {
+                // นับจำนวนข้อมูลที่ขาด
+                const missingCount = enabledSpecs.filter(
+                  (field) => !car.specs[field.key] || car.specs[field.key] === '-'
+                ).length;
+                const hasIncompleteData = missingCount > 0;
+
+                return (
+                  <div
+                    key={car.id}
+                    draggable
+                    onDragStart={() => handleDragStart(index)}
+                    onDragOver={(e) => handleDragOver(e, index)}
+                    className="text-center p-4 bg-gradient-to-br from-purple-50 to-pink-50 rounded-lg relative cursor-move"
+                  >
+                    <GripVertical className="absolute top-2 left-2 text-gray-400" size={16} />
+                    {!isExporting && (
+                      <>
+                        <button
+                          onClick={() => removeCar(car.id)}
+                          className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 z-10"
+                        >
+                          <X size={16} />
+                        </button>
+                        {hasIncompleteData && (
+                          <button
+                            onClick={() => requestDataEnrichment(car)}
+                            className="absolute top-2 right-2 bg-blue-500 text-white rounded-full px-2 py-1 hover:bg-blue-600 text-xs flex items-center gap-1 z-10"
+                            title={`ข้อมูลไม่ครบ ${missingCount} รายการ — คลิกเพื่อให้ AI ค้นหา`}
+                          >
+                            <Search size={12} />
+                            <span>ค้นหา</span>
+                          </button>
+                        )}
+                      </>
+                    )}
+                    <h3 className="font-bold text-lg mb-1">{car.model}</h3>
+                    <p className="text-sm text-gray-600 mb-2">{car.brand}</p>
+                    <p className="text-purple-600 font-bold">{car.price.toLocaleString()} ฿</p>
+                    {hasIncompleteData && !isExporting && (
+                      <p className="text-xs text-orange-600 mt-1">
+                        ข้อมูลไม่ครบ {missingCount} รายการ
+                      </p>
+                    )}
+                  </div>
+                );
+              })}
 
               {/* Specs Rows */}
               {enabledSpecs.map((field) => (
