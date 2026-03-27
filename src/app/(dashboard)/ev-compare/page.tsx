@@ -2,6 +2,8 @@
 
 import { useState, useRef, useEffect } from "react";
 import { Download, Plus, X, Search, GripVertical, Settings } from "lucide-react";
+import BrandAutocomplete from "@/components/BrandAutocomplete";
+import ModelAutocomplete from "@/components/ModelAutocomplete";
 
 interface EVSpec {
   id: string;
@@ -323,6 +325,14 @@ export default function EVComparePage() {
     brochure: null as File | null,
   });
   
+  // Autocomplete data
+  const [allBrands, setAllBrands] = useState<Array<{ id: string; name: string; nameTh: string; slug: string }>>([]);
+  const [allModels, setAllModels] = useState<Array<{ id: string; name: string; nameTh: string; slug: string; brand: { name: string } }>>([]);
+  const [filteredBrands, setFilteredBrands] = useState<typeof allBrands>([]);
+  const [filteredModels, setFilteredModels] = useState<typeof allModels>([]);
+  const [showBrandSuggestions, setShowBrandSuggestions] = useState(false);
+  const [showModelSuggestions, setShowModelSuggestions] = useState(false);
+  
   const comparisonRef = useRef<HTMLDivElement>(null);
 
   // Load data from NEV Database
@@ -343,6 +353,33 @@ export default function EVComparePage() {
       }
     }
     loadEVData();
+  }, []);
+  
+  // Load brands and models for autocomplete
+  useEffect(() => {
+    async function loadBrandsAndModels() {
+      try {
+        const [brandsRes, modelsRes] = await Promise.all([
+          fetch('/api/nev/brands'),
+          fetch('/api/nev/models')
+        ]);
+        
+        if (brandsRes.ok) {
+          const brandsData = await brandsRes.json();
+          setAllBrands(brandsData);
+          setFilteredBrands(brandsData);
+        }
+        
+        if (modelsRes.ok) {
+          const modelsData = await modelsRes.json();
+          setAllModels(modelsData);
+          setFilteredModels(modelsData);
+        }
+      } catch (error) {
+        console.error('Error loading brands/models:', error);
+      }
+    }
+    loadBrandsAndModels();
   }, []);
 
   // Get unique brands
@@ -444,11 +481,13 @@ export default function EVComparePage() {
 
     try {
       const formData = new FormData();
-      formData.append('brand', newCarForm.brand);
-      formData.append('model', newCarForm.model);
-      formData.append('variant', newCarForm.variant);
+      formData.append('brand', newCarForm.brand.trim());
+      formData.append('model', newCarForm.model.trim());
+      formData.append('variant', newCarForm.variant.trim());
       formData.append('year', newCarForm.year.toString());
-      formData.append('url', newCarForm.url);
+      if (newCarForm.url?.trim()) {
+        formData.append('url', newCarForm.url.trim());
+      }
       if (newCarForm.brochure) {
         formData.append('brochure', newCarForm.brochure);
       }
@@ -458,8 +497,9 @@ export default function EVComparePage() {
         body: formData,
       });
 
+      const result = await response.json();
+
       if (response.ok) {
-        const result = await response.json();
         alert(`✅ ${result.message}\n\nAI จะค้นหาข้อมูลและเพิ่มเข้าระบบโดยอัตโนมัติ (ประมาณ 5-10 นาที)\n\nแจ้งเตือนผ่าน Discord เมื่อเสร็จสิ้น`);
         setShowAddCarModal(false);
         setNewCarForm({
@@ -471,12 +511,11 @@ export default function EVComparePage() {
           brochure: null,
         });
       } else {
-        const error = await response.json();
-        alert(`❌ เกิดข้อผิดพลาด: ${error.error || 'ไม่สามารถส่งคำขอได้'}`);
+        alert(`❌ เกิดข้อผิดพลาด: ${result.error || 'ไม่สามารถส่งคำขอได้'}`);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Add new car request failed:', error);
-      alert('❌ เกิดข้อผิดพลาดในการเชื่อมต่อ กรุณาลองใหม่อีกครั้ง');
+      alert(`❌ เกิดข้อผิดพลาด: ${error.message || 'ไม่สามารถเชื่อมต่อได้'}`);
     }
   };
 
@@ -986,32 +1025,32 @@ export default function EVComparePage() {
                 </div>
 
                 <div className="space-y-4">
-                  {/* Brand */}
+                  {/* Brand - Autocomplete */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       แบรนด์ (Brand) <span className="text-red-500">*</span>
                     </label>
-                    <input
-                      type="text"
-                      placeholder="เช่น BYD, Tesla, MG"
+                    <BrandAutocomplete
                       value={newCarForm.brand}
-                      onChange={(e) => setNewCarForm({ ...newCarForm, brand: e.target.value })}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                      onChange={(value) => setNewCarForm({ ...newCarForm, brand: value, model: '', variant: '' })}
+                      onSelect={(brand) => setNewCarForm({ ...newCarForm, brand: brand.name, model: '', variant: '' })}
+                      placeholder="พิมพ์เพื่อค้นหา (เช่น BYD, Tesla, MG)"
                       required
                     />
                   </div>
 
-                  {/* Model */}
+                  {/* Model - Autocomplete */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       รุ่น (Model) <span className="text-red-500">*</span>
                     </label>
-                    <input
-                      type="text"
-                      placeholder="เช่น SEAL, Model Y, MG4"
+                    <ModelAutocomplete
                       value={newCarForm.model}
-                      onChange={(e) => setNewCarForm({ ...newCarForm, model: e.target.value })}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                      onChange={(value) => setNewCarForm({ ...newCarForm, model: value, variant: '' })}
+                      onSelect={(model) => setNewCarForm({ ...newCarForm, model: model.name })}
+                      brandName={newCarForm.brand}
+                      placeholder="พิมพ์เพื่อค้นหา (เช่น SEAL, Model Y, MG4)"
+                      disabled={!newCarForm.brand}
                       required
                     />
                   </div>

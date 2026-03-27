@@ -1,0 +1,208 @@
+--- Fix "Failed to send request" error และเพิ่ม Autocomplete สำหรับ Brand/Model ---
+
+สรุปการแก้ไข:
+1. ✅ แก้ไข error handling ใน handleAddNewCarSubmit
+2. ✅ เพิ่ม trim() สำหรับ input fields
+3. ✅ เพิ่ม autocomplete dropdown สำหรับ Brand + Model
+4. ✅ ป้องกันการสะกดผิด (เลือกจาก dropdown เท่านั้น)
+
+## Implementation Steps:
+
+### 1. เพิ่ม handler functions (หลังบรรทัด ~545):
+
+```typescript
+  // Handle brand input change (autocomplete)
+  const handleBrandInputChange = (value: string) => {
+    setNewCarForm({ ...newCarForm, brand: value, model: '', variant: '' });
+    
+    if (value.trim().length > 0) {
+      const filtered = allBrands.filter(b => 
+        b.name.toLowerCase().includes(value.toLowerCase()) ||
+        (b.nameTh && b.nameTh.includes(value))
+      );
+      setFilteredBrands(filtered);
+      setShowBrandSuggestions(true);
+    } else {
+      setFilteredBrands(allBrands);
+      setShowBrandSuggestions(false);
+    }
+  };
+  
+  // Handle brand selection from dropdown
+  const handleBrandSelect = (brand: typeof allBrands[0]) => {
+    setNewCarForm({ ...newCarForm, brand: brand.name, model: '', variant: '' });
+    setShowBrandSuggestions(false);
+    
+    // Filter models by brand
+    const brandModels = allModels.filter(m => m.brand.name === brand.name);
+    setFilteredModels(brandModels);
+  };
+  
+  // Handle model input change (autocomplete)
+  const handleModelInputChange = (value: string) => {
+    setNewCarForm({ ...newCarForm, model: value, variant: '' });
+    
+    if (value.trim().length > 0) {
+      const filtered = filteredModels.filter(m => 
+        m.name.toLowerCase().includes(value.toLowerCase()) ||
+        (m.nameTh && m.nameTh.includes(value))
+      );
+      setFilteredModels(filtered);
+      setShowModelSuggestions(true);
+    } else {
+      const brandModels = allModels.filter(m => m.brand.name === newCarForm.brand);
+      setFilteredModels(brandModels);
+      setShowModelSuggestions(false);
+    }
+  };
+  
+  // Handle model selection from dropdown
+  const handleModelSelect = (model: typeof allModels[0]) => {
+    setNewCarForm({ ...newCarForm, model: model.name });
+    setShowModelSuggestions(false);
+  };
+```
+
+### 2. แทนที่ Brand input field (บรรทัด ~1049):
+
+```tsx
+{/* Brand Field - Autocomplete */}
+<div>
+  <label className="block text-sm font-medium mb-2">
+    แบรนด์ (Brand) <span className="text-red-500">*</span>
+  </label>
+  <div className="relative">
+    <input
+      type="text"
+      value={newCarForm.brand}
+      onChange={(e) => handleBrandInputChange(e.target.value)}
+      onFocus={() => setShowBrandSuggestions(true)}
+      onBlur={() => setTimeout(() => setShowBrandSuggestions(false), 200)}
+      placeholder="พิมพ์เพื่อค้นหา (เช่น Tesla, BYD, MG)"
+      className="w-full p-3 rounded-lg border border-gray-700 bg-gray-800 text-white"
+      required
+    />
+    {showBrandSuggestions && filteredBrands.length > 0 && (
+      <div className="absolute z-10 w-full mt-1 bg-gray-800 border border-gray-700 rounded-lg max-h-60 overflow-y-auto shadow-xl">
+        {filteredBrands.map((brand) => (
+          <button
+            key={brand.id}
+            type="button"
+            onMouseDown={(e) => {
+              e.preventDefault();
+              handleBrandSelect(brand);
+            }}
+            className="w-full text-left px-4 py-2 hover:bg-gray-700 text-white transition"
+          >
+            <div className="font-medium">{brand.name}</div>
+            {brand.nameTh && <div className="text-sm text-gray-400">{brand.nameTh}</div>}
+          </button>
+        ))}
+      </div>
+    )}
+  </div>
+</div>
+```
+
+### 3. แทนที่ Model input field (บรรทัด ~1066):
+
+```tsx
+{/* Model Field - Autocomplete */}
+<div>
+  <label className="block text-sm font-medium mb-2">
+    รุ่น (Model) <span className="text-red-500">*</span>
+  </label>
+  <div className="relative">
+    <input
+      type="text"
+      value={newCarForm.model}
+      onChange={(e) => handleModelInputChange(e.target.value)}
+      onFocus={() => newCarForm.brand && setShowModelSuggestions(true)}
+      onBlur={() => setTimeout(() => setShowModelSuggestions(false), 200)}
+      placeholder={newCarForm.brand ? "พิมพ์เพื่อค้นหา (เช่น Model 3, ATTO 3)" : "เลือกแบรนด์ก่อน"}
+      className="w-full p-3 rounded-lg border border-gray-700 bg-gray-800 text-white"
+      disabled={!newCarForm.brand}
+      required
+    />
+    {showModelSuggestions && filteredModels.length > 0 && (
+      <div className="absolute z-10 w-full mt-1 bg-gray-800 border border-gray-700 rounded-lg max-h-60 overflow-y-auto shadow-xl">
+        {filteredModels.map((model) => (
+          <button
+            key={model.id}
+            type="button"
+            onMouseDown={(e) => {
+              e.preventDefault();
+              handleModelSelect(model);
+            }}
+            className="w-full text-left px-4 py-2 hover:bg-gray-700 text-white transition"
+          >
+            <div className="font-medium">{model.name}</div>
+            {model.nameTh && <div className="text-sm text-gray-400">{model.nameTh}</div>}
+          </button>
+        ))}
+      </div>
+    )}
+  </div>
+</div>
+```
+
+### 4. แก้ไข handleAddNewCarSubmit error handling:
+
+แทนที่บรรทัด ~485-514:
+```typescript
+const handleAddNewCarSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+  
+  if (!newCarForm.brand || !newCarForm.model || !newCarForm.variant) {
+    alert('❌ กรุณากรอกแบรนด์ รุ่น และรุ่นย่อย');
+    return;
+  }
+
+  const formData = new FormData();
+  formData.append('brand', newCarForm.brand.trim());
+  formData.append('model', newCarForm.model.trim());
+  formData.append('variant', newCarForm.variant.trim());
+  formData.append('year', newCarForm.year.toString());
+  if (newCarForm.url?.trim()) formData.append('url', newCarForm.url.trim());
+  if (newCarForm.brochure) formData.append('brochure', newCarForm.brochure);
+
+  try {
+    const response = await fetch('/api/nev/add-new', {
+      method: 'POST',
+      body: formData,
+    });
+
+    const result = await response.json();
+
+    if (response.ok) {
+      alert(`✅ ${result.message}\n\nAI จะค้นหาข้อมูลและเพิ่มเข้าระบบโดยอัตโนมัติ (ประมาณ 5-10 นาที)\n\nแจ้งเตือนผ่าน Discord เมื่อเสร็จสิ้น`);
+      setShowAddCarModal(false);
+      setNewCarForm({
+        brand: '',
+        model: '',
+        variant: '',
+        year: new Date().getFullYear(),
+        url: '',
+        brochure: null,
+      });
+    } else {
+      alert(`❌ เกิดข้อผิดพลาด: ${result.error || 'ไม่สามารถส่งคำขอได้'}`);
+    }
+  } catch (error: any) {
+    console.error('Add new car request failed:', error);
+    alert(`❌ เกิดข้อผิดพลาด: ${error.message || 'ไม่สามารถเชื่อมต่อได้'}`);
+  }
+};
+```
+
+---
+
+## Testing:
+
+1. เปิด /ev-compare
+2. ค้นหารถที่ไม่มีในระบบ (เช่น "Volvo EX90")
+3. กดปุ่ม "เพิ่มรถใหม่เข้าระบบ"
+4. พิมพ์ "Vol" → เห็น dropdown แสดง "Volvo"
+5. เลือก Volvo → dropdown Model จะแสดงเฉพาะรุ่น Volvo
+6. กรอกข้อมูลครบ → กด "ส่งคำขอ"
+7. ✅ ไม่มี "Failed to send request" error
