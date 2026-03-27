@@ -312,6 +312,17 @@ export default function EVComparePage() {
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   
+  // Add new car modal
+  const [showAddCarModal, setShowAddCarModal] = useState(false);
+  const [newCarForm, setNewCarForm] = useState({
+    brand: '',
+    model: '',
+    variant: '',
+    year: new Date().getFullYear(),
+    url: '',
+    brochure: null as File | null,
+  });
+  
   const comparisonRef = useRef<HTMLDivElement>(null);
 
   // Load data from NEV Database
@@ -425,17 +436,40 @@ export default function EVComparePage() {
     }, 2000);
   };
 
-  const requestNewCarAddition = async (carName: string) => {
+  const submitNewCar = async () => {
+    if (!newCarForm.brand || !newCarForm.model || !newCarForm.variant) {
+      alert('กรุณากรอกข้อมูลให้ครบถ้วน (แบรนด์, รุ่น, รุ่นย่อย)');
+      return;
+    }
+
     try {
+      const formData = new FormData();
+      formData.append('brand', newCarForm.brand);
+      formData.append('model', newCarForm.model);
+      formData.append('variant', newCarForm.variant);
+      formData.append('year', newCarForm.year.toString());
+      formData.append('url', newCarForm.url);
+      if (newCarForm.brochure) {
+        formData.append('brochure', newCarForm.brochure);
+      }
+
       const response = await fetch('/api/nev/add-new', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ carName }),
+        body: formData,
       });
 
       if (response.ok) {
         const result = await response.json();
-        alert(`✅ ${result.message}\n\nAI จะค้นหาข้อมูล ${carName} และเพิ่มเข้าระบบโดยอัตโนมัติ (ประมาณ 5-10 นาที)\n\nแจ้งเตือนผ่าน Discord เมื่อเสร็จสิ้น`);
+        alert(`✅ ${result.message}\n\nAI จะค้นหาข้อมูลและเพิ่มเข้าระบบโดยอัตโนมัติ (ประมาณ 5-10 นาที)\n\nแจ้งเตือนผ่าน Discord เมื่อเสร็จสิ้น`);
+        setShowAddCarModal(false);
+        setNewCarForm({
+          brand: '',
+          model: '',
+          variant: '',
+          year: new Date().getFullYear(),
+          url: '',
+          brochure: null,
+        });
       } else {
         const error = await response.json();
         alert(`❌ เกิดข้อผิดพลาด: ${error.error || 'ไม่สามารถส่งคำขอได้'}`);
@@ -784,12 +818,7 @@ export default function EVComparePage() {
                     <p className="text-sm mt-2">ลองปรับฟิลเตอร์ใหม่ หรือ</p>
                   </div>
                   <button
-                    onClick={() => {
-                      const carName = prompt('ชื่อรถที่ต้องการเพิ่ม (เช่น BYD SEAL 2024):');
-                      if (carName) {
-                        requestNewCarAddition(carName);
-                      }
-                    }}
+                    onClick={() => setShowAddCarModal(true)}
                     className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-lg hover:shadow-lg transition-all"
                   >
                     <Plus size={20} />
@@ -936,6 +965,147 @@ export default function EVComparePage() {
               เลือกรถอย่างน้อย 2 คัน
             </h3>
             <p className="text-gray-500">กดปุ่ม "เพิ่มรถ" เพื่อเริ่มเปรียบเทียบ</p>
+          </div>
+        )}
+
+        {/* Add New Car Modal */}
+        {showAddCarModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+              <div className="p-6">
+                <div className="flex justify-between items-center mb-6">
+                  <h2 className="text-2xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">
+                    เพิ่มรถใหม่เข้าระบบ
+                  </h2>
+                  <button
+                    onClick={() => setShowAddCarModal(false)}
+                    className="text-gray-400 hover:text-gray-600"
+                  >
+                    <X size={24} />
+                  </button>
+                </div>
+
+                <div className="space-y-4">
+                  {/* Brand */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      แบรนด์ (Brand) <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="เช่น BYD, Tesla, MG"
+                      value={newCarForm.brand}
+                      onChange={(e) => setNewCarForm({ ...newCarForm, brand: e.target.value })}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                      required
+                    />
+                  </div>
+
+                  {/* Model */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      รุ่น (Model) <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="เช่น SEAL, Model Y, MG4"
+                      value={newCarForm.model}
+                      onChange={(e) => setNewCarForm({ ...newCarForm, model: e.target.value })}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                      required
+                    />
+                  </div>
+
+                  {/* Variant */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      รุ่นย่อย (Sub-Model) <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="เช่น Standard Range, Long Range AWD, Extended"
+                      value={newCarForm.variant}
+                      onChange={(e) => setNewCarForm({ ...newCarForm, variant: e.target.value })}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                      required
+                    />
+                  </div>
+
+                  {/* Year */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      ปี (Model Year) <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="number"
+                      min="2020"
+                      max="2030"
+                      value={newCarForm.year}
+                      onChange={(e) => setNewCarForm({ ...newCarForm, year: parseInt(e.target.value) })}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                      required
+                    />
+                  </div>
+
+                  {/* URL */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      URL เพิ่มเติม (Optional)
+                    </label>
+                    <input
+                      type="url"
+                      placeholder="https://example.com/car-spec"
+                      value={newCarForm.url}
+                      onChange={(e) => setNewCarForm({ ...newCarForm, url: e.target.value })}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      URL ของหน้า spec ทางการ (ช่วย AI ค้นหาข้อมูล)
+                    </p>
+                  </div>
+
+                  {/* Brochure Upload */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      แนบไฟล์โบรชัวร์ (Optional)
+                    </label>
+                    <input
+                      type="file"
+                      accept=".pdf,image/*"
+                      onChange={(e) => setNewCarForm({ ...newCarForm, brochure: e.target.files?.[0] || null })}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      PDF หรือรูปภาพ (AI จะใช้ OCR ถอดข้อมูล)
+                    </p>
+                    {newCarForm.brochure && (
+                      <p className="text-sm text-green-600 mt-2">
+                        ✅ ไฟล์: {newCarForm.brochure.name}
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="mt-6 flex gap-3">
+                  <button
+                    onClick={submitNewCar}
+                    className="flex-1 px-6 py-3 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-lg hover:shadow-lg transition-all font-medium"
+                  >
+                    ส่งคำขอ
+                  </button>
+                  <button
+                    onClick={() => setShowAddCarModal(false)}
+                    className="px-6 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-all"
+                  >
+                    ยกเลิก
+                  </button>
+                </div>
+
+                <p className="text-xs text-gray-500 mt-4 text-center">
+                  🤖 AI จะค้นหาข้อมูลและเพิ่มเข้าระบบโดยอัตโนมัติ (5-10 นาที)
+                </p>
+              </div>
+            </div>
           </div>
         )}
       </div>
