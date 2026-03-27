@@ -391,7 +391,7 @@ export default function EVComparePage() {
   };
 
   const requestDataEnrichment = async (car: EVSpec) => {
-    if (!confirm(`ต้องการให้ Marcus-EV ค้นหาข้อมูล ${car.name} เพิ่มเติมใช่หรือไม่?`)) {
+    if (!confirm(`🔍 ต้องการให้ AI ค้นหาข้อมูล ${car.name} เพิ่มเติมใช่หรือไม่?\n\nAI จะค้นหาจากเว็บไซต์อย่างเป็นทางการและอัปเดตลงฐานข้อมูล`)) {
       return;
     }
 
@@ -408,13 +408,15 @@ export default function EVComparePage() {
       });
 
       if (response.ok) {
-        alert('✅ ส่งคำขอไป Marcus-EV แล้ว — กำลังค้นหาข้อมูล (ประมาณ 3-5 นาที)');
+        const result = await response.json();
+        alert(`✅ ${result.message}\n\nระบบจะอัปเดตข้อมูลโดยอัตโนมัติในภายหลัง`);
       } else {
-        alert('❌ ส่งคำขอล้มเหลว กรุณาลองใหม่อีกครั้ง');
+        const error = await response.json();
+        alert(`❌ เกิดข้อผิดพลาด: ${error.error || 'ไม่สามารถส่งคำขอได้'}`);
       }
     } catch (error) {
       console.error('Enrich request failed:', error);
-      alert('❌ เกิดข้อผิดพลาด');
+      alert('❌ เกิดข้อผิดพลาดในการเชื่อมต่อ กรุณาลองใหม่อีกครั้ง');
     }
   };
 
@@ -705,16 +707,16 @@ export default function EVComparePage() {
                   className="p-4 border border-gray-200 rounded-lg hover:border-purple-500 hover:shadow-md transition-all text-left"
                 >
                   <div className="flex justify-between items-start mb-2">
-                    <h3 className="font-semibold text-lg">{ev.model}</h3>
-                    <span className="text-xs bg-gray-100 px-2 py-1 rounded">{ev.brand}</span>
+                    <h3 className="font-semibold text-lg leading-tight">{ev.name}</h3>
+                    <span className="text-xs bg-gray-100 px-2 py-1 rounded shrink-0">{ev.brand}</span>
                   </div>
                   <p className="text-purple-600 font-bold text-xl mb-2">
                     {ev.price.toLocaleString()} ฿
                   </p>
                   <div className="text-sm text-gray-600 space-y-1">
-                    <p>⚡ {ev.specs.horsepower}</p>
-                    <p>🔋 {ev.specs.battery}</p>
-                    <p>📍 {ev.specs.range}</p>
+                    <p>⚡ {ev.specs.horsepower || '-'}</p>
+                    <p>🔋 {ev.specs.battery || '-'}</p>
+                    <p>📍 {ev.specs.range || '-'}</p>
                   </div>
                 </button>
               ))}

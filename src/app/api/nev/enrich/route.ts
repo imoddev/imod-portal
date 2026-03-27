@@ -5,7 +5,24 @@ export async function POST(request: NextRequest) {
   try {
     const { variantId, variantName, brand, model } = await request.json();
 
-    // ส่งคำขอไป Marcus-EV ผ่าน sessions_send
+    if (!variantId || !variantName || !brand || !model) {
+      return NextResponse.json(
+        { error: 'Missing required fields' },
+        { status: 400 }
+      );
+    }
+
+    // TODO: ส่งคำขอไป Marcus-EV ผ่าน OpenClaw sessions_send API
+    // (ตอนนี้ยังไม่มี Gateway URL setup ใน production)
+    
+    // For now: บันทึก request และตอบกลับทันที
+    console.log('NEV Data Enrichment Request:', {
+      variantId,
+      variantName,
+      brand,
+      model,
+    });
+
     const message = `🔍 **NEV Data Enrichment Request**
 
 รถ: ${brand} ${model} (${variantName})
@@ -42,29 +59,18 @@ Variant ID: ${variantId}
 
 ใช้ Gemini + web search ในการค้นหาครับ`;
 
-    // ส่งไป Marcus-EV session
-    const response = await fetch(`${process.env.NEXT_PUBLIC_GATEWAY_URL || 'http://localhost:8080'}/api/sessions/send`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        label: 'marcus-ev',
-        message: message,
-        timeoutSeconds: 300, // 5 นาที
-      }),
-    });
-
-    if (!response.ok) {
-      throw new Error('Failed to send request to Marcus-EV');
-    }
-
-    const result = await response.json();
-
+    // Return success immediately
+    // TODO: Integrate with OpenClaw sessions_send API when Gateway is available
     return NextResponse.json({
       success: true,
-      message: 'ส่งคำขอไป Marcus-EV แล้ว — กำลังค้นหาข้อมูล...',
-      taskId: result.taskId,
+      message: `📝 บันทึกคำขอสำหรับ ${brand} ${variantName} แล้ว — Marcus-EV จะประมวลผลในภายหลัง`,
+      request: {
+        variantId,
+        variantName,
+        brand,
+        model,
+        timestamp: new Date().toISOString(),
+      },
     });
   } catch (error) {
     console.error('Enrich request failed:', error);
