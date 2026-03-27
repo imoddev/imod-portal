@@ -282,10 +282,9 @@ const defaultSpecFields: SpecField[] = [
   { key: "v2l", label: "V2L", enabled: true },
   { key: "warranty", label: "การรับประกัน", enabled: true },
   { key: "safety", label: "ความปลอดภัย", enabled: true },
-  { key: "length", label: "ความยาว", enabled: false },
-  { key: "width", label: "ความกว้าง", enabled: false },
-  { key: "height", label: "ความสูง", enabled: false },
+  { key: "dimensions", label: "มิติตัวรถ (ยาว × กว้าง × สูง)", enabled: true },
   { key: "wheelbase", label: "ฐานล้อ", enabled: false },
+  { key: "groundClearance", label: "ระยะห่างจากพื้น (Ground Clearance)", enabled: false },
   { key: "weight", label: "น้ำหนัก", enabled: false },
   { key: "seats", label: "ที่นั่ง", enabled: false },
   { key: "trunk", label: "พื้นที่เก็บของ", enabled: false },
@@ -564,8 +563,24 @@ export default function EVComparePage() {
   };
 
   // Helper: Format spec values (trim verbose text)
-  const formatSpecValue = (key: string, value: string | number | undefined): string => {
-    if (!value || value === '-') return '-';
+  const formatSpecValue = (key: string, value: string | number | undefined, car?: EVSpec): string => {
+    if (!value || value === '-') {
+      // Special case: dimensions from length/width/height
+      if (key === 'dimensions' && car) {
+        const length = car.specs.length;
+        const width = car.specs.width;
+        const height = car.specs.height;
+        
+        if (length && width && height) {
+          // Extract numbers: "4,720 มม." → "4,720"
+          const l = String(length).replace(/[^\d,]/g, '');
+          const w = String(width).replace(/[^\d,]/g, '');
+          const h = String(height).replace(/[^\d,]/g, '');
+          return `${l} × ${w} × ${h} มม.`;
+        }
+      }
+      return '-';
+    }
     
     const str = String(value);
     
@@ -1231,7 +1246,7 @@ export default function EVComparePage() {
                     }`}>
                       <input
                         type="text"
-                        value={formatSpecValue(field.key, car.specs[field.key])}
+                        value={formatSpecValue(field.key, car.specs[field.key], car)}
                         onChange={(e) => updateCarSpec(car.id, field.key, e.target.value)}
                         className={`w-full text-center text-base font-normal bg-transparent border-none focus:outline-none focus:ring-2 rounded px-2 py-0.5 leading-tight ${
                           bgTheme === "dark" || bgTheme === "purple"
