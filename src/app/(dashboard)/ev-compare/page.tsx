@@ -308,11 +308,18 @@ export default function EVComparePage() {
   const [selectedBrand, setSelectedBrand] = useState<string>("all");
   const [priceRange, setPriceRange] = useState<[number, number]>([0, 5000000]);
   const [sortBy, setSortBy] = useState<"price" | "range" | "power">("price");
+  const [theme, setTheme] = useState<"light" | "dark" | "gradient">("light");
   
   // Auto-save state
   const [isSaving, setIsSaving] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // Background & Export options
+  const [bgTheme, setBgTheme] = useState<"light" | "dark" | "purple" | "custom">("light");
+  const [customBgColor, setCustomBgColor] = useState("#ffffff");
+  const [showCarImages, setShowCarImages] = useState(true);
+  const [showLogo, setShowLogo] = useState(true);
   
   // Add new car modal
   const [showAddCarModal, setShowAddCarModal] = useState(false);
@@ -589,9 +596,17 @@ export default function EVComparePage() {
 
       const { domToPng } = await import("modern-screenshot");
 
+      // Get background color based on theme
+      const getBgColor = () => {
+        if (bgTheme === "custom") return customBgColor;
+        if (bgTheme === "dark") return "#1a1a1a";
+        if (bgTheme === "purple") return "#9333ea";
+        return "#ffffff";
+      };
+
       const dataUrl = await domToPng(comparisonRef.current, {
         scale: scale,
-        backgroundColor: "#ffffff",
+        backgroundColor: getBgColor(),
         quality: 1,
         features: {
           removeControlCharacter: true,
@@ -659,7 +674,39 @@ export default function EVComparePage() {
               </button>
 
               {showResolutionPicker && !isExporting && (
-                <div className="absolute top-full mt-2 right-0 bg-white rounded-lg shadow-xl border border-gray-200 p-4 min-w-[200px] z-10">
+                <div className="absolute top-full mt-2 right-0 bg-white rounded-lg shadow-xl border border-gray-200 p-4 min-w-[250px] z-10">
+                  {/* Theme Selector */}
+                  <h4 className="font-semibold text-sm mb-3 text-gray-700">เลือกธีม</h4>
+                  <div className="space-y-2 mb-4 pb-4 border-b border-gray-200">
+                    <button
+                      onClick={() => setTheme("light")}
+                      className={`w-full text-left px-4 py-2 rounded transition-colors ${
+                        theme === "light" ? "bg-purple-100 border-2 border-purple-500" : "hover:bg-gray-100"
+                      }`}
+                    >
+                      <div className="font-medium">☀️ พื้นหลังสว่าง</div>
+                      <div className="text-sm text-gray-700">เหมาะสำหรับพิมพ์</div>
+                    </button>
+                    <button
+                      onClick={() => setTheme("dark")}
+                      className={`w-full text-left px-4 py-2 rounded transition-colors ${
+                        theme === "dark" ? "bg-purple-100 border-2 border-purple-500" : "hover:bg-gray-100"
+                      }`}
+                    >
+                      <div className="font-medium">🌙 พื้นหลังมืด</div>
+                      <div className="text-sm text-gray-700">สไตล์ Premium</div>
+                    </button>
+                    <button
+                      onClick={() => setTheme("gradient")}
+                      className={`w-full text-left px-4 py-2 rounded transition-colors ${
+                        theme === "gradient" ? "bg-purple-100 border-2 border-purple-500" : "hover:bg-gray-100"
+                      }`}
+                    >
+                      <div className="font-medium">🌈 Gradient</div>
+                      <div className="text-sm text-gray-700">สไตล์ iMoD</div>
+                    </button>
+                  </div>
+                  
                   <h4 className="font-semibold text-sm mb-3 text-gray-700">เลือกความละเอียด</h4>
                   <div className="space-y-2">
                     <button
@@ -692,20 +739,93 @@ export default function EVComparePage() {
 
         {/* Settings Panel */}
         {showSettings && (
-          <div className="mb-6 bg-white rounded-lg shadow-lg p-6">
-            <h3 className="font-bold text-xl mb-6 text-gray-900">เลือก Specs ที่จะแสดง</h3>
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-              {specFields.map((field) => (
-                <label key={field.key} className="flex items-center gap-3 cursor-pointer hover:bg-gray-50 p-2 rounded-lg transition">
+          <div className="mb-6 bg-white rounded-lg shadow-lg p-6 space-y-8">
+            {/* Background Theme */}
+            <div>
+              <h3 className="font-bold text-xl mb-4 text-gray-900">🎨 พื้นหลัง</h3>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <button
+                  onClick={() => setBgTheme("light")}
+                  className={`p-4 rounded-lg border-2 transition ${bgTheme === "light" ? "border-purple-600 bg-purple-50" : "border-gray-300 hover:border-gray-400"}`}
+                >
+                  <div className="w-full h-16 bg-white rounded mb-2 border border-gray-200"></div>
+                  <div className="text-sm font-medium">Light</div>
+                </button>
+                <button
+                  onClick={() => setBgTheme("dark")}
+                  className={`p-4 rounded-lg border-2 transition ${bgTheme === "dark" ? "border-purple-600 bg-purple-50" : "border-gray-300 hover:border-gray-400"}`}
+                >
+                  <div className="w-full h-16 bg-gradient-to-br from-gray-900 via-gray-800 to-red-900 rounded mb-2"></div>
+                  <div className="text-sm font-medium">Dark</div>
+                </button>
+                <button
+                  onClick={() => setBgTheme("purple")}
+                  className={`p-4 rounded-lg border-2 transition ${bgTheme === "purple" ? "border-purple-600 bg-purple-50" : "border-gray-300 hover:border-gray-400"}`}
+                >
+                  <div className="w-full h-16 bg-gradient-to-br from-purple-600 to-pink-600 rounded mb-2"></div>
+                  <div className="text-sm font-medium">iMoD</div>
+                </button>
+                <button
+                  onClick={() => setBgTheme("custom")}
+                  className={`p-4 rounded-lg border-2 transition ${bgTheme === "custom" ? "border-purple-600 bg-purple-50" : "border-gray-300 hover:border-gray-400"}`}
+                >
+                  <div className="w-full h-16 rounded mb-2 border-2 border-dashed border-gray-400 flex items-center justify-center">
+                    <input
+                      type="color"
+                      value={customBgColor}
+                      onChange={(e) => {
+                        setCustomBgColor(e.target.value);
+                        setBgTheme("custom");
+                      }}
+                      className="w-12 h-12 cursor-pointer"
+                    />
+                  </div>
+                  <div className="text-sm font-medium">Custom</div>
+                </button>
+              </div>
+            </div>
+
+            {/* Export Options */}
+            <div>
+              <h3 className="font-bold text-xl mb-4 text-gray-900">📸 Export</h3>
+              <div className="flex gap-4">
+                <label className="flex items-center gap-2 cursor-pointer">
                   <input
                     type="checkbox"
-                    checked={field.enabled}
-                    onChange={() => toggleSpecField(field.key)}
-                    className="w-5 h-5 text-purple-600 rounded border-2 border-gray-400 focus:ring-2 focus:ring-purple-500 cursor-pointer"
+                    checked={showCarImages}
+                    onChange={(e) => setShowCarImages(e.target.checked)}
+                    className="w-5 h-5 text-purple-600 rounded"
                   />
-                  <span className="text-base font-medium text-gray-900">{field.label}</span>
+                  <span className="text-base font-medium">แสดงรูปรถ</span>
                 </label>
-              ))}
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={showLogo}
+                    onChange={(e) => setShowLogo(e.target.checked)}
+                    className="w-5 h-5 text-purple-600 rounded"
+                  />
+                  <span className="text-base font-medium">แสดง Logo</span>
+                </label>
+              </div>
+            </div>
+
+            {/* Specs Selection */}
+            <div>
+              <h3 className="font-bold text-xl mb-4 text-gray-900">📋 เลือก Specs</h3>
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                {specFields.map((field) => (
+                  <label key={field.key} className="flex items-center gap-3 cursor-pointer hover:bg-gray-50 p-2 rounded-lg transition">
+                    <input
+                      type="checkbox"
+                      checked={field.enabled}
+                      onChange={() => toggleSpecField(field.key)}
+                      className="w-5 h-5 text-purple-600 rounded border-2 border-gray-400 focus:ring-2 focus:ring-purple-500 cursor-pointer"
+                    />
+                    <span className="text-base font-medium text-gray-900">{field.label}</span>
+                  </label>
+                ))}
+              </div>
             </div>
           </div>
         )}
@@ -875,7 +995,19 @@ export default function EVComparePage() {
 
         {/* Comparison Table */}
         {selectedCars.length >= 2 ? (
-          <div ref={comparisonRef} className="bg-white rounded-lg shadow-2xl p-8">
+          <div 
+            ref={comparisonRef} 
+            className="rounded-lg shadow-2xl p-8"
+            style={{
+              background: bgTheme === "dark" 
+                ? "linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 50%, #4a1a1a 100%)"
+                : bgTheme === "purple"
+                ? "linear-gradient(135deg, #9333ea 0%, #c026d3 50%, #db2777 100%)"
+                : bgTheme === "custom"
+                ? customBgColor
+                : "#ffffff"
+            }}
+          >
             {/* Header with Logo */}
             <div className="flex justify-between items-center mb-6 pb-4 border-b-2 border-purple-600">
               <h2 className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
