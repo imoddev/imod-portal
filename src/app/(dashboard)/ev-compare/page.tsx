@@ -308,7 +308,6 @@ export default function EVComparePage() {
   const [selectedBrand, setSelectedBrand] = useState<string>("all");
   const [priceRange, setPriceRange] = useState<[number, number]>([0, 5000000]);
   const [sortBy, setSortBy] = useState<"price" | "range" | "power">("price");
-  const [theme, setTheme] = useState<"light" | "dark" | "gradient">("light");
   
   // Auto-save state
   const [isSaving, setIsSaving] = useState(false);
@@ -679,30 +678,30 @@ export default function EVComparePage() {
                   <h4 className="font-semibold text-sm mb-3 text-gray-700">เลือกธีม</h4>
                   <div className="space-y-2 mb-4 pb-4 border-b border-gray-200">
                     <button
-                      onClick={() => setTheme("light")}
+                      onClick={() => setBgTheme("light")}
                       className={`w-full text-left px-4 py-2 rounded transition-colors ${
-                        theme === "light" ? "bg-purple-100 border-2 border-purple-500" : "hover:bg-gray-100"
+                        bgTheme === "light" ? "bg-purple-100 border-2 border-purple-500" : "hover:bg-gray-100"
                       }`}
                     >
                       <div className="font-medium">☀️ พื้นหลังสว่าง</div>
                       <div className="text-sm text-gray-700">เหมาะสำหรับพิมพ์</div>
                     </button>
                     <button
-                      onClick={() => setTheme("dark")}
+                      onClick={() => setBgTheme("dark")}
                       className={`w-full text-left px-4 py-2 rounded transition-colors ${
-                        theme === "dark" ? "bg-purple-100 border-2 border-purple-500" : "hover:bg-gray-100"
+                        bgTheme === "dark" ? "bg-purple-100 border-2 border-purple-500" : "hover:bg-gray-100"
                       }`}
                     >
                       <div className="font-medium">🌙 พื้นหลังมืด</div>
                       <div className="text-sm text-gray-700">สไตล์ Premium</div>
                     </button>
                     <button
-                      onClick={() => setTheme("gradient")}
+                      onClick={() => setBgTheme("purple")}
                       className={`w-full text-left px-4 py-2 rounded transition-colors ${
-                        theme === "gradient" ? "bg-purple-100 border-2 border-purple-500" : "hover:bg-gray-100"
+                        bgTheme === "purple" ? "bg-purple-100 border-2 border-purple-500" : "hover:bg-gray-100"
                       }`}
                     >
-                      <div className="font-medium">🌈 Gradient</div>
+                      <div className="font-medium">🌈 Gradient Purple</div>
                       <div className="text-sm text-gray-700">สไตล์ iMoD</div>
                     </button>
                   </div>
@@ -1009,13 +1008,23 @@ export default function EVComparePage() {
             }}
           >
             {/* Header with Logo */}
-            <div className="flex justify-between items-center mb-6 pb-4 border-b-2 border-purple-600">
-              <h2 className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
+            <div className={`flex justify-between items-center mb-6 pb-4 border-b-2 ${bgTheme === "light" ? "border-purple-600" : "border-pink-500"}`}>
+              <h2 className={`text-2xl font-bold ${
+                bgTheme === "light" 
+                  ? "bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent"
+                  : "text-white"
+              }`}>
                 เปรียบเทียบรถ EV
               </h2>
-              <div className="text-right">
-                <p className="text-sm text-gray-500">iMoD Drive</p>
-                <p className="text-sm text-gray-700">ev.iphonemod.net</p>
+              <div className="text-right flex flex-col items-end gap-1">
+                <img 
+                  src="/logo-evmod.png" 
+                  alt="iMoD Drive" 
+                  className="h-12" 
+                  onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                />
+                <p className={`text-sm ${bgTheme === "light" ? "text-gray-500" : "text-gray-300"}`}>iMoD Drive</p>
+                <p className={`text-sm ${bgTheme === "light" ? "text-gray-700" : "text-white"}`}>ev.iphonemod.net</p>
               </div>
             </div>
 
@@ -1039,7 +1048,11 @@ export default function EVComparePage() {
                     draggable
                     onDragStart={() => handleDragStart(index)}
                     onDragOver={(e) => handleDragOver(e, index)}
-                    className="text-center p-4 bg-gradient-to-br from-purple-50 to-pink-50 rounded-lg relative cursor-move"
+                    className={`text-center p-4 rounded-lg relative cursor-move ${
+                      bgTheme === "dark" || bgTheme === "purple" 
+                        ? "bg-white/10 backdrop-blur-sm border border-white/20" 
+                        : "bg-gradient-to-br from-purple-50 to-pink-50 dark:from-gray-800 dark:to-gray-900"
+                    }`}
                   >
                     <GripVertical className="absolute top-2 left-2 text-gray-400" size={16} />
                     {!isExporting && (
@@ -1062,9 +1075,46 @@ export default function EVComparePage() {
                         )}
                       </>
                     )}
-                    <div className="text-lg font-bold text-gray-900 leading-tight mb-1">{car.brand} - {car.model}</div>
-                    <div className="text-base text-gray-700 leading-tight mb-1">{car.name.replace(`${car.brand} ${car.model} `, '')}</div>
-                    <div className="text-purple-600 font-bold text-xl leading-tight">{car.price.toLocaleString()} ฿</div>
+                    {/* Car Image */}
+                    {showCarImages && car.image && (
+                      <div className="mb-3">
+                        <img 
+                          src={car.image} 
+                          alt={car.name}
+                          className="w-full h-32 object-contain"
+                        />
+                      </div>
+                    )}
+                    {showCarImages && !car.image && !isExporting && (
+                      <div className="mb-3 relative group">
+                        <div className="w-full h-32 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center bg-gray-50">
+                          <button
+                            onClick={() => {
+                              const url = prompt("ใส่ URL รูปรถ:");
+                              if (url) {
+                                const updatedCars = selectedCars.map(c => 
+                                  c.id === car.id ? { ...c, image: url } : c
+                                );
+                                setSelectedCars(updatedCars);
+                                triggerAutoSave(updatedCars);
+                              }
+                            }}
+                            className="text-sm text-gray-500 hover:text-purple-600 transition"
+                          >
+                            + เพิ่มรูปรถ
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                    <div className={`text-lg font-bold leading-tight mb-1 ${bgTheme === "dark" || bgTheme === "purple" ? "text-white" : "text-gray-900"}`}>
+                      {car.brand} - {car.model}
+                    </div>
+                    <div className={`text-base leading-tight mb-1 ${bgTheme === "dark" || bgTheme === "purple" ? "text-white/80" : "text-gray-700"}`}>
+                      {car.name.replace(`${car.brand} ${car.model} `, '')}
+                    </div>
+                    <div className={`font-bold text-xl leading-tight ${bgTheme === "dark" || bgTheme === "purple" ? "text-pink-400" : "text-purple-600"}`}>
+                      {car.price.toLocaleString()} ฿
+                    </div>
                     {hasIncompleteData && !isExporting && (
                       <p className="text-xs text-orange-600 mt-1">
                         ข้อมูลไม่ครบ {missingCount} รายการ
@@ -1077,17 +1127,29 @@ export default function EVComparePage() {
               {/* Specs Rows */}
               {enabledSpecs.map((field) => (
                 <div key={field.key} className="contents">
-                  <div className="font-bold text-lg text-gray-900 py-1 px-3 bg-gray-100 rounded-lg flex items-center leading-tight">
+                  <div className={`font-bold text-lg py-1 px-3 rounded-lg flex items-center leading-tight ${
+                    bgTheme === "dark" || bgTheme === "purple"
+                      ? "text-white bg-white/10 border border-white/20"
+                      : "text-gray-900 bg-gray-100"
+                  }`}>
                     {field.label}
                   </div>
                   {selectedCars.map((car) => (
-                    <div key={car.id} className="py-1 px-3 text-center border-b border-gray-200">
+                    <div key={car.id} className={`py-1 px-3 text-center ${
+                      bgTheme === "dark" || bgTheme === "purple" 
+                        ? "border-b border-white/10" 
+                        : "border-b border-gray-200"
+                    }`}>
                       <input
                         type="text"
                         value={car.specs[field.key] || "-"}
                         onChange={(e) => updateCarSpec(car.id, field.key, e.target.value)}
-                        className="w-full text-center text-base font-normal text-gray-900 bg-transparent border-none focus:bg-yellow-50 focus:outline-none focus:ring-2 focus:ring-purple-300 rounded px-2 py-0.5 leading-tight placeholder-gray-400"
-                        style={{ color: '#000000' }}
+                        className={`w-full text-center text-base font-normal bg-transparent border-none focus:outline-none focus:ring-2 rounded px-2 py-0.5 leading-tight ${
+                          bgTheme === "dark" || bgTheme === "purple"
+                            ? "text-white placeholder-white/50 focus:bg-white/10 focus:ring-pink-400"
+                            : "text-gray-900 placeholder-gray-400 focus:bg-yellow-50 focus:ring-purple-300"
+                        }`}
+                        style={{ color: bgTheme === "dark" || bgTheme === "purple" ? '#ffffff' : '#000000' }}
                       />
                     </div>
                   ))}
@@ -1096,8 +1158,29 @@ export default function EVComparePage() {
             </div>
 
             {/* Footer */}
-            <div className="mt-6 pt-4 border-t text-center">
-              <div className="text-sm text-gray-500 mb-2">
+            <div className={`mt-6 pt-4 text-center ${
+              bgTheme === "dark" || bgTheme === "purple" 
+                ? "border-t border-white/20" 
+                : "border-t border-gray-300"
+            }`}>
+              {showLogo && (
+                <div className="flex justify-center items-center gap-8 mb-4">
+                  <div className={`text-xl font-bold ${
+                    bgTheme === "dark" || bgTheme === "purple" ? "text-white" : "text-gray-900"
+                  }`}>
+                    iMoD Drive
+                  </div>
+                  <div className="w-px h-8 bg-gray-300"></div>
+                  <div className={`text-xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text ${
+                    bgTheme === "dark" || bgTheme === "purple" ? "text-transparent" : "text-transparent"
+                  }`}>
+                    iMoD Official
+                  </div>
+                </div>
+              )}
+              <div className={`text-sm mb-2 ${
+                bgTheme === "dark" || bgTheme === "purple" ? "text-white/70" : "text-gray-500"
+              }`}>
                 สร้างโดย iMoD Drive — ข้อมูล ณ วันที่{" "}
                 {new Date().toLocaleDateString("th-TH", {
                   year: "numeric",
