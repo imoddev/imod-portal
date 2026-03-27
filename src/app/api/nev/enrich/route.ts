@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma';
 // Discord notification config
 const DISCORD_THREAD_ID = '1487009409765736559';
 const DISCORD_CHANNEL_ID = '1487009275883819199';
+const DISCORD_WEBHOOK_URL = 'https://discord.com/api/webhooks/1487030874749931570/xHvPQ1OQDB6VncXBJgvWSgFdsHZm4GnsvNtghFDDAK7K65JH2jlB1YJt3VUtYM-dLrwI';
 
 // API สำหรับขอให้ Marcus-EV ค้นหาข้อมูลเพิ่มเติม
 export async function POST(request: NextRequest) {
@@ -54,57 +55,36 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    const message = `🔍 **NEV Data Enrichment Request**
-
-รถ: ${brand} ${model} (${variantName})
-Variant ID: ${variantId}
-
-กรุณาค้นหาข้อมูลรถยนต์นี้จากเว็บไซต์อย่างเป็นทางการและอัปเดตลง NEV Database:
-
-**ข้อมูลที่ต้องค้นหา:**
-1. กำลังไฟฟ้า (kW)
-2. แรงม้า (hp)
-3. แรงบิด (Nm)
-4. แบตเตอรี่ (kWh)
-5. ชนิดแบตเตอรี่ (NMC/LFP/NCM)
-6. ระยะทาง (km + มาตรฐาน WLTP/NEDC/CLTC)
-7. 0-100 km/h (วินาที)
-8. ความเร็วสูงสุด (km/h)
-9. ระบบขับเคลื่อน (AWD/FWD/RWD)
-10. การชาร์จ DC (kW + เวลา 10-80%)
-11. การชาร์จ AC (kW)
-12. V2L (รองรับ/ไม่รองรับ + กำลังไฟ kW)
-13. การรับประกัน (แบต + รถ)
-14. ฟีเจอร์ความปลอดภัย (AEB, LDW, BSM, ACC, etc.)
-15. มิติรถ (ความยาว/กว้าง/สูง/ฐานล้อ mm)
-16. น้ำหนัก (kg)
-
-**แหล่งข้อมูล:**
-- เว็บไซต์ ${brand} อย่างเป็นทางการ
-- Press Release
-- Spec Sheet / Brochure
-
-**หลังค้นหาเสร็จ:**
-1. อัปเดตข้อมูลลง \`NevVariant\` table (variantId: ${variantId})
-2. ตอบกลับพร้อมข้อมูลที่อัปเดต (JSON format)
-
-ใช้ Gemini + web search ในการค้นหาครับ`;
-
     // ส่งข้อความแจ้ง Discord ว่ามี request ใหม่
+    let notificationSent = false;
     try {
       await sendDiscordNotification({
         threadId: DISCORD_THREAD_ID,
-        channelId: DISCORD_CHANNEL_ID,
-        content: `🔍 **NEV Data Enrichment Request**\n\nรถ: ${brand} ${model}\nVariant: ${variantName}\nRequest ID: \`${enrichmentRequest.id}\`\nStatus: ⏳ รอดำเนินการ`,
+        content: `🔍 **NEV Data Enrichment Request**
+
+รถ: ${brand} ${model}
+Variant: ${variantName}
+Request ID: \`${enrichmentRequest.id}\`
+Status: ⏳ รอดำเนินการ
+
+**แหล่งข้อมูล:**
+- เว็บไซต์ ${brand} อย่างเป็นทางการ
+- Press Release / Spec Sheet
+
+**Variant ID:** \`${variantId}\``,
       });
-    } catch (error) {
-      console.error('Failed to send Discord notification:', error);
+      notificationSent = true;
+      console.log(`✅ Discord notification sent (Request ID: ${enrichmentRequest.id})`);
+    } catch (error: any) {
+      console.error('❌ Failed to send Discord notification:', error);
+      console.error('Error details:', error.message);
     }
 
     return NextResponse.json({
       success: true,
-      message: `📝 บันทึกคำขอสำหรับ ${brand} ${variantName} แล้ว\n\nRequest ID: ${enrichmentRequest.id}\n\nระบบจะแจ้งเตือนผ่าน Discord เมื่อเสร็จสิ้น`,
+      message: `📝 บันทึกคำขอสำหรับ ${brand} ${variantName} แล้ว\n\nRequest ID: ${enrichmentRequest.id}\n\n${notificationSent ? '✅ แจ้ง Discord แล้ว' : '⚠️ แจ้ง Discord ล้มเหลว (ตรวจสอบ console)'}`,
       requestId: enrichmentRequest.id,
+      notificationSent,
     });
   } catch (error: any) {
     console.error('Enrich request failed:', error);
@@ -119,35 +99,34 @@ Variant ID: ${variantId}
   }
 }
 
-// Helper: Send Discord notification
+// Helper: Send Discord notification via Webhook
 async function sendDiscordNotification({
   threadId,
-  channelId,
   content,
 }: {
   threadId: string;
-  channelId: string;
   content: string;
 }) {
-  const GATEWAY_URL = process.env.NEXT_PUBLIC_GATEWAY_URL || 'http://localhost:8080';
-  
-  const response = await fetch(`${GATEWAY_URL}/api/message`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      action: 'send',
-      channel: 'discord',
-      target: channelId,
-      message: content,
-      threadId: threadId,
-    }),
-  });
-
-  if (!response.ok) {
-    throw new Error('Failed to send Discord notification');
+  try {
+    const response = await fetch(`${DISCORD_WEBHOOK_URL}?thread_id=${threadId}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        content,
+      }),
+    });
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Discord webhook failed: ${response.status} ${errorText}`);
+    }
+    
+    console.log(`✅ Discord notification sent via webhook (thread: ${threadId})`);
+    return { success: true };
+  } catch (error: any) {
+    console.error('❌ Discord webhook error:', error.message);
+    throw error;
   }
-
-  return response.json();
 }

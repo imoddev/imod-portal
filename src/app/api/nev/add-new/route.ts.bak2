@@ -137,3 +137,35 @@ ${brochureUrl ? `2. โบรชัวร์: ${brochureUrl} (ใช้ OCR Trip
   }
 }
 
+// Helper: Send Discord notification
+async function sendDiscordNotification({
+  threadId,
+  channelId,
+  content,
+}: {
+  threadId: string;
+  channelId: string;
+  content: string;
+}) {
+  const GATEWAY_URL = process.env.NEXT_PUBLIC_GATEWAY_URL || 'http://localhost:8080';
+  
+  const response = await fetch(`${GATEWAY_URL}/api/message`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      action: 'send',
+      channel: 'discord',
+      target: channelId,
+      message: content,
+      threadId: threadId,
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error('Failed to send Discord notification');
+  }
+
+  return response.json();
+}
