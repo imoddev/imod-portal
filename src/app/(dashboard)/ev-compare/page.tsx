@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Download, Plus, X, Search, GripVertical, Settings } from "lucide-react";
+import { Download, Plus, X, Search, GripVertical, Settings, Upload, Image as ImageIcon } from "lucide-react";
 import BrandAutocomplete from "@/components/BrandAutocomplete";
 import ModelAutocomplete from "@/components/ModelAutocomplete";
 
@@ -1077,32 +1077,93 @@ export default function EVComparePage() {
                     )}
                     {/* Car Image */}
                     {showCarImages && car.image && (
-                      <div className="mb-3">
+                      <div className="mb-3 relative group">
                         <img 
                           src={car.image} 
                           alt={car.name}
                           className="w-full h-32 object-contain"
                         />
-                      </div>
-                    )}
-                    {showCarImages && !car.image && !isExporting && (
-                      <div className="mb-3 relative group">
-                        <div className="w-full h-32 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center bg-gray-50">
-                          <button
-                            onClick={() => {
-                              const url = prompt("ใส่ URL รูปรถ:");
-                              if (url) {
+                        {!isExporting && (
+                          <div className="absolute top-0 right-0 flex gap-1 opacity-0 group-hover:opacity-100 transition">
+                            <button
+                              onClick={() => {
+                                const url = prompt("แก้ไข URL รูปรถ:", car.image);
+                                if (url !== null) {
+                                  const updatedCars = selectedCars.map(c => 
+                                    c.id === car.id ? { ...c, image: url || undefined } : c
+                                  );
+                                  setSelectedCars(updatedCars);
+                                  triggerAutoSave(updatedCars);
+                                }
+                              }}
+                              className="bg-blue-500 text-white rounded-full p-1 hover:bg-blue-600"
+                              title="แก้ไขรูป"
+                            >
+                              <Search size={12} />
+                            </button>
+                            <button
+                              onClick={() => {
                                 const updatedCars = selectedCars.map(c => 
-                                  c.id === car.id ? { ...c, image: url } : c
+                                  c.id === car.id ? { ...c, image: undefined } : c
                                 );
                                 setSelectedCars(updatedCars);
                                 triggerAutoSave(updatedCars);
-                              }
-                            }}
-                            className="text-sm text-gray-500 hover:text-purple-600 transition"
-                          >
-                            + เพิ่มรูปรถ
-                          </button>
+                              }}
+                              className="bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
+                              title="ลบรูป"
+                            >
+                              <X size={12} />
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    {showCarImages && !car.image && !isExporting && (
+                      <div className="mb-3 relative">
+                        <div className="w-full h-32 border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center bg-gray-50 gap-2">
+                          <ImageIcon size={24} className="text-gray-400" />
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => {
+                                const url = prompt("ใส่ URL รูปรถ:");
+                                if (url) {
+                                  const updatedCars = selectedCars.map(c => 
+                                    c.id === car.id ? { ...c, image: url } : c
+                                  );
+                                  setSelectedCars(updatedCars);
+                                  triggerAutoSave(updatedCars);
+                                }
+                              }}
+                              className="text-xs px-3 py-1 bg-purple-100 text-purple-700 rounded hover:bg-purple-200 transition flex items-center gap-1"
+                            >
+                              <Search size={12} />
+                              URL
+                            </button>
+                            <label className="text-xs px-3 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition flex items-center gap-1 cursor-pointer">
+                              <Upload size={12} />
+                              Upload
+                              <input
+                                type="file"
+                                accept="image/*"
+                                className="hidden"
+                                onChange={(e) => {
+                                  const file = e.target.files?.[0];
+                                  if (file) {
+                                    const reader = new FileReader();
+                                    reader.onload = (event) => {
+                                      const dataUrl = event.target?.result as string;
+                                      const updatedCars = selectedCars.map(c => 
+                                        c.id === car.id ? { ...c, image: dataUrl } : c
+                                      );
+                                      setSelectedCars(updatedCars);
+                                      triggerAutoSave(updatedCars);
+                                    };
+                                    reader.readAsDataURL(file);
+                                  }
+                                }}
+                              />
+                            </label>
+                          </div>
                         </div>
                       </div>
                     )}
