@@ -91,7 +91,7 @@ export async function getAllEVCars(): Promise<EVCarData[]> {
       warranty: v.warrantyBattery && v.warrantyVehicle
         ? `${v.warrantyBattery} (แบต), ${v.warrantyVehicle} (รถ)`
         : v.warrantyBattery || v.warrantyVehicle || undefined,
-      safety: buildSafetyString(v.safety),
+      safety: buildSafetyString(v.safety, v.features),
       length: v.lengthMm ? `${v.lengthMm} มม.` : undefined,
       width: v.widthMm ? `${v.widthMm} มม.` : undefined,
       height: v.heightMm ? `${v.heightMm} มม.` : undefined,
@@ -104,10 +104,23 @@ export async function getAllEVCars(): Promise<EVCarData[]> {
 }
 
 // สร้าง Safety Feature String
-function buildSafetyString(safety: any): string | undefined {
-  if (!safety) return undefined;
-
+function buildSafetyString(safety: any, featuresJson?: string | null): string | undefined {
   const features: string[] = [];
+
+  // Try to parse features JSON first (Mazda6e style)
+  if (featuresJson) {
+    try {
+      const parsed = JSON.parse(featuresJson);
+      if (parsed.safety && Array.isArray(parsed.safety)) {
+        return parsed.safety.join(', ');
+      }
+    } catch (e) {
+      // Ignore JSON parse errors
+    }
+  }
+
+  // Fallback: build from NevSafety table
+  if (!safety) return undefined;
 
   // ADAS
   if (safety.adaptiveCruise || safety.intelligentCruise) features.push('ACC');
