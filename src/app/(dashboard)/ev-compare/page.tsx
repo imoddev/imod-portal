@@ -301,6 +301,12 @@ export default function EVComparePage() {
   const [isExporting, setIsExporting] = useState(false);
   const [exportResolution, setExportResolution] = useState<number>(2);
   const [showResolutionPicker, setShowResolutionPicker] = useState(false);
+  
+  // Search filters
+  const [selectedBrand, setSelectedBrand] = useState<string>("all");
+  const [priceRange, setPriceRange] = useState<[number, number]>([0, 5000000]);
+  const [sortBy, setSortBy] = useState<"price" | "range" | "power">("price");
+  
   const comparisonRef = useRef<HTMLDivElement>(null);
 
   // Load data from NEV Database
@@ -323,12 +329,44 @@ export default function EVComparePage() {
     loadEVData();
   }, []);
 
-  const filteredEVs = carDatabase.filter(
-    (ev) =>
-      !selectedCars.find((c) => c.id === ev.id) &&
-      (ev.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        ev.brand.toLowerCase().includes(searchTerm.toLowerCase()))
-  );
+  // Get unique brands
+  const brands = Array.from(new Set(carDatabase.map((ev) => ev.brand))).sort();
+
+  // Filter and sort
+  const filteredEVs = carDatabase
+    .filter((ev) => {
+      // Already selected
+      if (selectedCars.find((c) => c.id === ev.id)) return false;
+      
+      // Search term
+      if (searchTerm && !ev.name.toLowerCase().includes(searchTerm.toLowerCase()) &&
+          !ev.brand.toLowerCase().includes(searchTerm.toLowerCase()) &&
+          !ev.model.toLowerCase().includes(searchTerm.toLowerCase())) {
+        return false;
+      }
+      
+      // Brand filter
+      if (selectedBrand !== "all" && ev.brand !== selectedBrand) return false;
+      
+      // Price range
+      if (ev.price < priceRange[0] || ev.price > priceRange[1]) return false;
+      
+      return true;
+    })
+    .sort((a, b) => {
+      if (sortBy === "price") return a.price - b.price;
+      if (sortBy === "range") {
+        const rangeA = parseInt(a.specs.range?.split(" ")[0] || "0");
+        const rangeB = parseInt(b.specs.range?.split(" ")[0] || "0");
+        return rangeB - rangeA;
+      }
+      if (sortBy === "power") {
+        const powerA = parseInt(a.specs.horsepower?.split(" ")[0] || "0");
+        const powerB = parseInt(b.specs.horsepower?.split(" ")[0] || "0");
+        return powerB - powerA;
+      }
+      return 0;
+    });
 
   const addCar = (car: EVSpec) => {
     if (selectedCars.length < 6) {
@@ -516,6 +554,7 @@ export default function EVComparePage() {
         {/* Search Panel */}
         {showSearch && (
           <div className="mb-6 bg-white rounded-lg shadow-lg p-6">
+            {/* Search Box */}
             <div className="relative mb-4">
               <Search className="absolute left-3 top-3 text-gray-400" size={20} />
               <input
@@ -528,22 +567,136 @@ export default function EVComparePage() {
               />
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {/* Filters */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+              {/* Brand Filter */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">แบรนด์</label>
+                <select
+                  value={selectedBrand}
+                  onChange={(e) => setSelectedBrand(e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+                >
+                  <option value="all">ทุกแบรนด์</option>
+                  {brands.map((brand) => (
+                    <option key={brand} value={brand}>{brand}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Price Range */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  ช่วงราคา: {priceRange[0].toLocaleString()} - {priceRange[1].toLocaleString()} บาท
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    type="number"
+                    placeholder="Min"
+                    value={priceRange[0]}
+                    onChange={(e) => setPriceRange([parseInt(e.target.value) || 0, priceRange[1]])}
+                    className="w-1/2 px-3 py-2 border border-gray-300 rounded-lg"
+                  />
+                  <input
+                    type="number"
+                    placeholder="Max"
+                    value={priceRange[1]}
+                    onChange={(e) => setPriceRange([priceRange[0], parseInt(e.target.value) || 5000000])}
+                    className="w-1/2 px-3 py-2 border border-gray-300 rounded-lg"
+                  />
+                </div>
+              </div>
+
+              {/* Sort By */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">เรียงตาม</label>
+                <select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value as any)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+                >
+                  <option value="price">ราคา (ถูก → แพง)</option>
+                  <option value="range">ระยะทาง (มาก → น้อย)</option>
+                  <option value="power">กำลัง (มาก → น้อย)</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Quick Filters */}
+            <div className="flex gap-2 mb-4 flex-wrap">
+              <button
+                onClick={() => {
+                  setSelectedBrand("all");
+                  setPriceRange([0, 1000000]);
+                }}
+                className="px-4 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 text-sm"
+              >
+                ราคาไม่เกิน 1 ล้าน
+              </button>
+              <button
+                onClick={() => {
+                  setSelectedBrand("all");
+                  setPriceRange([1000000, 2000000]);
+                }}
+                className="px-4 py-2 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 text-sm"
+              >
+                1-2 ล้าน
+              </button>
+              <button
+                onClick={() => {
+                  setSelectedBrand("all");
+                  setPriceRange([2000000, 5000000]);
+                }}
+                className="px-4 py-2 bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200 text-sm"
+              >
+                Premium (2 ล้าน+)
+              </button>
+              <button
+                onClick={() => {
+                  setSelectedBrand("all");
+                  setPriceRange([0, 5000000]);
+                  setSearchTerm("");
+                }}
+                className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 text-sm"
+              >
+                ล้างฟิลเตอร์
+              </button>
+            </div>
+
+            {/* Results Count */}
+            <p className="text-sm text-gray-600 mb-4">
+              พบ {filteredEVs.length} คัน
+            </p>
+
+            {/* Car List */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 max-h-[500px] overflow-y-auto">
               {filteredEVs.map((ev) => (
                 <button
                   key={ev.id}
                   onClick={() => addCar(ev)}
                   className="p-4 border border-gray-200 rounded-lg hover:border-purple-500 hover:shadow-md transition-all text-left"
                 >
-                  <h3 className="font-semibold text-lg">{ev.name}</h3>
-                  <p className="text-purple-600 font-bold">
-                    {ev.price.toLocaleString()} บาท
+                  <div className="flex justify-between items-start mb-2">
+                    <h3 className="font-semibold text-lg">{ev.model}</h3>
+                    <span className="text-xs bg-gray-100 px-2 py-1 rounded">{ev.brand}</span>
+                  </div>
+                  <p className="text-purple-600 font-bold text-xl mb-2">
+                    {ev.price.toLocaleString()} ฿
                   </p>
-                  <p className="text-sm text-gray-500 mt-1">
-                    {ev.specs.power} • {ev.specs.range}
-                  </p>
+                  <div className="text-sm text-gray-600 space-y-1">
+                    <p>⚡ {ev.specs.horsepower}</p>
+                    <p>🔋 {ev.specs.battery}</p>
+                    <p>📍 {ev.specs.range}</p>
+                  </div>
                 </button>
               ))}
+              
+              {filteredEVs.length === 0 && (
+                <div className="col-span-full text-center py-12 text-gray-500">
+                  <p className="text-lg">ไม่พบรถที่ตรงกับเงื่อนไข</p>
+                  <p className="text-sm mt-2">ลองปรับฟิลเตอร์ใหม่</p>
+                </div>
+              )}
             </div>
           </div>
         )}
