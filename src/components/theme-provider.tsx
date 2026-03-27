@@ -28,14 +28,21 @@ export function ThemeProvider({
   storageKey = "imod-portal-theme",
   ...props
 }: ThemeProviderProps) {
-  const [theme, setTheme] = useState<Theme>(defaultTheme);
+  const [theme, setTheme] = useState<Theme>(() => {
+    // Only access localStorage on client
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem(storageKey) as Theme;
+      return stored || defaultTheme;
+    }
+    return defaultTheme;
+  });
 
   useEffect(() => {
     const stored = localStorage.getItem(storageKey) as Theme;
-    if (stored) {
+    if (stored && stored !== theme) {
       setTheme(stored);
     }
-  }, [storageKey]);
+  }, [storageKey, theme]);
 
   useEffect(() => {
     const root = window.document.documentElement;
