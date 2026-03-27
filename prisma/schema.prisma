@@ -1306,3 +1306,38 @@ model NevVariantFeature {
   @@unique([variantId, featureId])
 }
 
+
+// NEV Data Enrichment Requests (Auto-complete Missing Data)
+model NevEnrichmentRequest {
+  id           String   @id @default(cuid())
+  
+  variantId    String
+  variantName  String
+  brand        String
+  model        String
+  
+  status       String   @default("pending") // pending, processing, completed, failed
+  
+  requestedBy  String?  // User ID
+  requestedAt  DateTime @default(now())
+  
+  startedAt    DateTime?
+  completedAt  DateTime?
+  
+  fieldsRequested String[]  // ["horsepower", "battery", "range"]
+  fieldsCompleted String[]  @default([])
+  
+  errorMessage String?
+  
+  // Discord notification
+  notifyThreadId  String?  // Discord thread ID to notify
+  notifyChannelId String?  // Discord channel ID
+  notifiedAt      DateTime?
+  
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([variantId])
+  @@index([status])
+  @@index([requestedAt])
+}
