@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Download, Plus, X, Search, GripVertical, Settings } from "lucide-react";
 
 interface EVSpec {
@@ -21,8 +21,8 @@ interface SpecField {
   enabled: boolean;
 }
 
-// Expanded car database
-const carDatabase: EVSpec[] = [
+// Sample car database (will be replaced with API data)
+const sampleCarDatabase: EVSpec[] = [
   {
     id: "1",
     name: "Tesla Model 3 Long Range",
@@ -290,6 +290,8 @@ const defaultSpecFields: SpecField[] = [
 ];
 
 export default function EVComparePage() {
+  const [carDatabase, setCarDatabase] = useState<EVSpec[]>(sampleCarDatabase);
+  const [isLoadingData, setIsLoadingData] = useState(true);
   const [selectedCars, setSelectedCars] = useState<EVSpec[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [showSearch, setShowSearch] = useState(false);
@@ -300,6 +302,26 @@ export default function EVComparePage() {
   const [exportResolution, setExportResolution] = useState<number>(2);
   const [showResolutionPicker, setShowResolutionPicker] = useState(false);
   const comparisonRef = useRef<HTMLDivElement>(null);
+
+  // Load data from NEV Database
+  useEffect(() => {
+    async function loadEVData() {
+      try {
+        const response = await fetch('/api/nev/cars');
+        if (response.ok) {
+          const data = await response.json();
+          setCarDatabase(data);
+        } else {
+          console.error('Failed to load EV data, using sample data');
+        }
+      } catch (error) {
+        console.error('Error loading EV data:', error);
+      } finally {
+        setIsLoadingData(false);
+      }
+    }
+    loadEVData();
+  }, []);
 
   const filteredEVs = carDatabase.filter(
     (ev) =>
@@ -404,6 +426,8 @@ export default function EVComparePage() {
           </h1>
           <p className="text-gray-600">
             เลือกรถได้สูงสุด 6 คัน เพื่อเปรียบเทียบ specs ครบวงจร
+            {isLoadingData && " — กำลังโหลดข้อมูล..."}
+            {!isLoadingData && ` — ${carDatabase.length} คันในระบบ`}
           </p>
         </div>
 
